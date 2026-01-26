@@ -62,7 +62,9 @@ let state = JSON.parse(localStorage.getItem("markovState")) || {
   history: [],
   transitions: {},
   miss: 0,
-  bets: Array(20).fill(1)
+  bets: Array(20).fill(1),
+  lastPrediction: null,
+  lastResult: null
 };
 
 // ---------- MARKOV ----------
