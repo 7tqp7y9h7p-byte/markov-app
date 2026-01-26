@@ -26,28 +26,19 @@ button{
   margin-top:14px
 }
 
-/* SUURED KAARDID */
 .big{
   text-align:center;
   background:linear-gradient(135deg,#1d4ed8,#2563eb)
 }
-.big .amount{font-size:56px;font-weight:bold}
+.amount{font-size:56px;font-weight:bold}
 .label{opacity:.85}
 
-/* ENNUSTUS */
 .prediction{
-  background:linear-gradient(135deg,#047857,#16a34a);
+  background:linear-gradient(135deg,#047857,#16a34a)
 }
-.prediction .amount{
-  font-size:72px;
-}
+.prediction .amount{font-size:72px}
 
-/* CONFIDENCE */
-.confSmall{
-  font-size:18px;
-  margin-top:6px;
-  opacity:.85
-}
+.confSmall{font-size:16px;opacity:.85}
 
 .green{color:#22c55e}
 .yellow{color:#eab308}
@@ -74,36 +65,39 @@ canvas{background:#020617;border-radius:12px}
 
 <button class="full reset" onclick="resetAll()">🔄 Reset</button>
 
-<div class="card" id="result">Ootan sisendit…</div>
-
-<!-- JÄRGMINE ENNUSTUS -->
+<!-- ENNUSTUS -->
 <div class="card big prediction">
   <div class="label">🔮 JÄRGMINE ENNUSTUS</div>
   <div class="amount" id="nextPrediction">—</div>
   <div class="confSmall" id="confidence">Confidence —</div>
 </div>
 
-<!-- JÄRGMINE PANUS -->
+<!-- PANUS -->
 <div class="card big">
   <div class="label">💰 JÄRGMINE PANUS</div>
   <div class="amount" id="nextBet">—</div>
   <div class="small" id="betReason"></div>
 </div>
 
-<!-- CONF LIMIT -->
+<!-- BANKROLL -->
+<div class="card big">
+  <div class="label">🏦 BANKROLL</div>
+  <div class="amount" id="bankroll">—</div>
+  <div class="small" id="roi"></div>
+</div>
+
 <div class="card">
-  <b>⚙️ Minimaalne confidence (%)</b>
+  <b>⚙️ Min confidence (%)</b>
   <input type="number" id="confLimit" value="45" onchange="save()">
+
+  <b>💼 Algne bankroll</b>
+  <input type="number" id="startBank" value="1000"
+         onchange="resetAll(true)">
 </div>
 
 <div class="card">
   <b>📈 Täpsuse ajalugu</b>
   <canvas id="chart" height="150"></canvas>
-</div>
-
-<div class="card">
-  <b>💰 Panuse astmed</b>
-  <div id="bets"></div>
 </div>
 
 <script>
@@ -112,20 +106,9 @@ let state=JSON.parse(localStorage.getItem("markovState"))||{
   history:[],transitions:{},miss:0,
   bets:Array(20).fill(1),
   lastPrediction:null,
-  total:0,correct:0,timeline:[]
+  total:0,correct:0,timeline:[],
+  bankroll:1000, invested:0
 };
-
-// ===== VIBRATION =====
-function vibrate(type="normal"){
-  if(!navigator.vibrate) return;
-  switch(type){
-    case "win": navigator.vibrate([60,40,60]); break;
-    case "lose": navigator.vibrate([120,60,120]); break;
-    case "high": navigator.vibrate([40,40,40,40,40]); break;
-    case "low": navigator.vibrate(25); break;
-    default: navigator.vibrate(40);
-  }
-}
 
 // ===== CONFIDENCE =====
 function confidence(){
@@ -150,31 +133,29 @@ function predict(){
 // ===== INPUT =====
 function inputNum(n){
   let conf=confidence();
-  let limit=Number(document.getElementById("confLimit").value);
-  let resultType="normal";
+  let limit=Number(confLimit.value);
+  let missIdx=Math.min(state.miss,19);
+  let bet=state.bets[missIdx];
+  let panusta=conf!==null && conf>=limit;
 
-  if(conf!==null){
-    if(conf>=60) vibrate("high");
-    else vibrate("low");
-  }
-
-  if(state.lastPrediction!==null && conf!==null && conf>=limit){
-    state.total++;
+  if(state.lastPrediction!==null && panusta){
+    state.invested+=bet;
     if(state.lastPrediction==n){
       state.correct++;
       state.miss=0;
       state.timeline.push(1);
-      resultType="win";
+      state.bankroll+=bet;
     }else{
       state.miss++;
       state.timeline.push(0);
-      resultType="lose";
+      state.bankroll-=bet;
     }
+    state.total++;
   }
 
   if(state.history.length>=2){
     let k=state.history.slice(-2).join(",");
-    if(!state.transitions[k]) state.transitions[k]={};
+    state.transitions[k]??={};
     state.transitions[k][n]=(state.transitions[k][n]||0)+1;
   }
 
@@ -182,64 +163,42 @@ function inputNum(n){
   if(state.history.length>2) state.history.shift();
   state.lastPrediction=predict();
 
-  save();
-  updateUI();
-  updateChart();
-  vibrate(resultType);
+  save();updateUI();updateChart();
 }
 
 // ===== UI =====
 function updateUI(){
   let conf=confidence();
-  let limit=Number(document.getElementById("confLimit").value);
+  let limit=Number(confLimit.value);
   let missIdx=Math.min(state.miss,19);
-  let baseBet=state.bets[missIdx];
+  let bet=state.bets[missIdx];
 
-  let bet=0,reason="";
-  if(conf===null){
-    reason="Pole piisavalt andmeid";
-  }else if(conf<limit){
-    reason=`Confidence ${conf}% < ${limit}% → EI PANUSTA`;
-  }else{
-    bet=baseBet;
-    reason="Panus lubatud";
-  }
+  let can=conf!==null && conf>=limit;
 
-  document.getElementById("nextPrediction").innerText=
-    state.lastPrediction ?? "—";
-
-  let cEl=document.getElementById("confidence");
-  cEl.innerText=conf===null?"Confidence —":"Confidence "+conf+"%";
-  cEl.className="confSmall "+
+  nextPrediction.innerText=state.lastPrediction??"—";
+  confidence.innerText=conf?`Confidence ${conf}%`:"Confidence —";
+  confidence.className="confSmall "+
     (conf>=60?"green":conf>=40?"yellow":"red");
 
-  document.getElementById("nextBet").innerText=bet;
-  document.getElementById("betReason").innerText=reason;
+  nextBet.innerText=can?bet:0;
+  betReason.innerText=can?"Panus lubatud":"EI PANUSTA";
 
-  document.getElementById("result").innerHTML=`
-    ❌ Mööda järjest: <b>${state.miss}</b><br>
-    📊 Täpsus: ${state.correct}/${state.total}
-  `;
+  bankroll.innerText=state.bankroll.toFixed(2);
+  roi.innerText=state.invested
+    ? `ROI ${( (state.bankroll-Number(startBank.value))/state.invested*100).toFixed(1)}%`
+    : "ROI —";
 }
 
 // ===== RESET =====
-function resetAll(){
-  if(!confirm("Reset?"))return;
+function resetAll(full=false){
   let b=state.bets;
-  state={history:[],transitions:{},miss:0,bets:b,
-    lastPrediction:null,total:0,correct:0,timeline:[]};
+  let start=Number(startBank.value);
+  state={
+    history:[],transitions:{},miss:0,bets:b,
+    lastPrediction:null,total:0,correct:0,timeline:[],
+    bankroll:start,invested:0
+  };
   save();updateUI();updateChart();
-}
-
-// ===== BETS =====
-function drawBets(){
-  let d=document.getElementById("bets"); d.innerHTML="";
-  state.bets.forEach((v,i)=>{
-    d.innerHTML+=`
-      <input type="number" value="${v}"
-      onchange="state.bets[${i}]=Number(this.value);save()">
-      <span class="small">aste ${i+1}</span><br>`;
-  });
 }
 
 // ===== STORAGE =====
@@ -248,22 +207,19 @@ function save(){
 }
 
 // ===== CHART =====
-let ctx=document.getElementById("chart").getContext("2d");
-let chart=new Chart(ctx,{
+let ctx=chart.getContext("2d");
+let chartObj=new Chart(ctx,{
   type:"line",
-  data:{labels:[],datasets:[{data:[],label:"Õige(1)/Mööda(0)",tension:.3}]},
-  options:{scales:{y:{min:0,max:1,ticks:{stepSize:1}}}}
+  data:{labels:[],datasets:[{data:[],label:"Õige(1)/Mööda(0)"}]},
+  options:{scales:{y:{min:0,max:1}}}
 });
 function updateChart(){
-  chart.data.labels=state.timeline.map((_,i)=>i+1);
-  chart.data.datasets[0].data=state.timeline;
-  chart.update();
+  chartObj.data.labels=state.timeline.map((_,i)=>i+1);
+  chartObj.data.datasets[0].data=state.timeline;
+  chartObj.update();
 }
 
-// INIT
-drawBets();
-updateUI();
-updateChart();
+updateUI();updateChart();
 </script>
 
 </body>
