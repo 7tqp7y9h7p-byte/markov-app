@@ -26,18 +26,34 @@ button{
   margin-top:14px
 }
 
+/* SUURED KAARDID */
 .big{
   text-align:center;
   background:linear-gradient(135deg,#1d4ed8,#2563eb)
 }
-.amount{font-size:52px;font-weight:bold}
+.big .amount{font-size:56px;font-weight:bold}
 .label{opacity:.85}
+
+/* ENNUSTUS */
+.prediction{
+  background:linear-gradient(135deg,#047857,#16a34a);
+}
+.prediction .amount{
+  font-size:72px;
+}
+
+/* CONFIDENCE */
+.confSmall{
+  font-size:18px;
+  margin-top:6px;
+  opacity:.85
+}
+
 .green{color:#22c55e}
 .yellow{color:#eab308}
 .red{color:#ef4444}
 
 input{width:100%;font-size:16px;margin:4px 0}
-
 canvas{background:#020617;border-radius:12px}
 .small{font-size:13px;opacity:.8}
 </style>
@@ -60,13 +76,14 @@ canvas{background:#020617;border-radius:12px}
 
 <div class="card" id="result">Ootan sisendit…</div>
 
-<!-- CONFIDENCE -->
-<div class="card big">
-  <div class="label">🧠 CONFIDENCE</div>
-  <div class="amount" id="confidence">—</div>
+<!-- JÄRGMINE ENNUSTUS -->
+<div class="card big prediction">
+  <div class="label">🔮 JÄRGMINE ENNUSTUS</div>
+  <div class="amount" id="nextPrediction">—</div>
+  <div class="confSmall" id="confidence">Confidence —</div>
 </div>
 
-<!-- NEXT BET -->
+<!-- JÄRGMINE PANUS -->
 <div class="card big">
   <div class="label">💰 JÄRGMINE PANUS</div>
   <div class="amount" id="nextBet">—</div>
@@ -76,8 +93,7 @@ canvas{background:#020617;border-radius:12px}
 <!-- CONF LIMIT -->
 <div class="card">
   <b>⚙️ Minimaalne confidence (%)</b>
-  <input type="number" id="confLimit" value="45"
-         onchange="save()">
+  <input type="number" id="confLimit" value="45" onchange="save()">
 </div>
 
 <div class="card">
@@ -124,7 +140,6 @@ function inputNum(n){
   let conf=confidence();
   let limit=Number(document.getElementById("confLimit").value);
 
-  // kontrollime ainult kui panustasime
   if(state.lastPrediction!==null && conf!==null && conf>=limit){
     state.total++;
     if(state.lastPrediction==n){
@@ -166,15 +181,21 @@ function updateUI(){
     reason="Panus lubatud";
   }
 
-  let confEl=document.getElementById("confidence");
-  confEl.innerText=conf===null?"—":conf+"%";
-  confEl.className="amount "+(conf>=60?"green":conf>=40?"yellow":"red");
+  // Ennustus
+  document.getElementById("nextPrediction").innerText=
+    state.lastPrediction ?? "—";
 
+  // Confidence (väike)
+  let cEl=document.getElementById("confidence");
+  cEl.innerText=conf===null?"Confidence —":"Confidence "+conf+"%";
+  cEl.className="confSmall "+
+    (conf>=60?"green":conf>=40?"yellow":"red");
+
+  // Panus
   document.getElementById("nextBet").innerText=bet;
   document.getElementById("betReason").innerText=reason;
 
   document.getElementById("result").innerHTML=`
-    🔮 Järgmine ennustus: <b>${state.lastPrediction}</b><br>
     ❌ Mööda järjest: <b>${state.miss}</b><br>
     📊 Täpsus: ${state.correct}/${state.total}
   `;
