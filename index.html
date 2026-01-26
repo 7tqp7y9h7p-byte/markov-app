@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="et">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Markovi Ennustaja</title>
+
+<style>
+body {
+  font-family: -apple-system, BlinkMacSystemFont;
+  background: #0f172a;
+  color: white;
+  padding: 16px;
+}
+h1 { font-size: 22px; }
+button {
+  width: 22%;
+  padding: 14px;
+  font-size: 22px;
+  margin: 1%;
+  border-radius: 10px;
+  border: none;
+  background: #2563eb;
+  color: white;
+}
+.card {
+  background: #1e293b;
+  padding: 12px;
+  border-radius: 12px;
+  margin-top: 12px;
+}
+input {
+  width: 100%;
+  font-size: 16px;
+  margin: 3px 0;
+}
+.small { font-size: 14px; opacity: 0.85; }
+</style>
+</head>
+
+<body>
+
+<h1>📊 Markovi Ennustaja</h1>
+
+<div>
+  <button onclick="inputNum(0)">0</button>
+  <button onclick="inputNum(1)">1</button>
+  <button onclick="inputNum(2)">2</button>
+  <button onclick="inputNum(3)">3</button>
+</div>
+
+<div class="card" id="result">Ootan sisendit…</div>
+
+<div class="card">
+<b>💰 Panused (20 astet)</b><br>
+<div id="bets"></div>
+</div>
+
+<script>
+// ---------- STATE ----------
+let state = JSON.parse(localStorage.getItem("markovState")) || {
+  history: [],
+  transitions: {},
+  miss: 0,
+  bets: Array(20).fill(1)
+};
+
+// ---------- MARKOV ----------
+function predict() {
+  if (state.history.length < 2) return 1;
+  let key = state.history.slice(-2).join(",");
+  let row = state.transitions[key];
+  if (!row) return 1;
+
+  return Object.keys(row).reduce((a,b)=>row[a]>row[b]?a:b);
+}
+
+function inputNum(n) {
+  let pred = predict();
+
+  if (state.history.length >= 2) {
+    let key = state.history.slice(-2).join(",");
+    if (!state.transitions[key]) state.transitions[key] = {};
+    state.transitions[key][n] = (state.transitions[key][n] || 0) + 1;
+  }
+
+  state.miss = (pred == n) ? 0 : state.miss + 1;
+  state.history.push(n);
+  if (state.history.length > 2) state.history.shift();
+
+  localStorage.setItem("markovState", JSON.stringify(state));
+
+  document.getElementById("result").innerHTML =
+    `🎯 Ennustus: <b>${pred}</b><br>
+     📥 Sisend: <b>${n}</b><br>
+     ❌ Mööda järjest: <b>${state.miss}</b><br>
+     💰 Soovituslik panus: <b>${state.bets[Math.min(state.miss,19)]}</b>`;
+}
+
+// ---------- BETS UI ----------
+function drawBets() {
+  let d = document.getElementById("bets");
+  d.innerHTML = "";
+  state.bets.forEach((v,i)=>{
+    d.innerHTML +=
+      `<input type="number" value="${v}"
+       onchange="state.bets[${i}]=Number(this.value);
+       localStorage.setItem('markovState',JSON.stringify(state))">
+       <span class="small">aste ${i+1}</span><br>`;
+  });
+}
+drawBets();
+</script>
+
+</body>
+</html>
