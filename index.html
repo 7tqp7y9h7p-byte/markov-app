@@ -6,69 +6,40 @@
 <title>Markovi Ennustaja</title>
 
 <style>
-body {
-  font-family: -apple-system, BlinkMacSystemFont;
-  background: #020617;
-  color: white;
-  padding: 16px;
+body{
+  font-family:-apple-system,BlinkMacSystemFont;
+  background:#020617;color:white;padding:16px
 }
-h1 { font-size: 22px; text-align:center; }
+h1{text-align:center}
 
-button {
-  width: 22%;
-  padding: 14px;
-  font-size: 22px;
-  margin: 1%;
-  border-radius: 12px;
-  border: none;
-  background: #2563eb;
-  color: white;
+button{
+  width:22%;padding:14px;font-size:22px;
+  margin:1%;border-radius:12px;
+  border:none;background:#2563eb;color:white
 }
-.full { width:100%; margin-top:10px; }
-.reset { background:#dc2626; }
+.full{width:100%}
+.reset{background:#dc2626}
 
-.card {
-  background: #0f172a;
-  padding: 14px;
-  border-radius: 14px;
-  margin-top: 14px;
+.card{
+  background:#0f172a;
+  padding:14px;border-radius:14px;
+  margin-top:14px
 }
 
-.big-bet {
-  background: linear-gradient(135deg,#1d4ed8,#2563eb);
-  text-align: center;
+.big{
+  text-align:center;
+  background:linear-gradient(135deg,#1d4ed8,#2563eb)
 }
+.amount{font-size:52px;font-weight:bold}
+.label{opacity:.85}
+.green{color:#22c55e}
+.yellow{color:#eab308}
+.red{color:#ef4444}
 
-.big-bet .amount {
-  font-size: 48px;
-  font-weight: bold;
-  margin: 10px 0;
-}
+input{width:100%;font-size:16px;margin:4px 0}
 
-.big-bet .label {
-  font-size: 14px;
-  opacity: 0.9;
-}
-
-.big {
-  font-size: 22px;
-  font-weight: bold;
-}
-
-.ok { color:#22c55e; }
-.bad { color:#ef4444; }
-
-input {
-  width: 100%;
-  font-size: 16px;
-  margin: 4px 0;
-}
-
-canvas {
-  background:#020617;
-  border-radius:12px;
-}
-.small { font-size:13px; opacity:0.85; }
+canvas{background:#020617;border-radius:12px}
+.small{font-size:13px;opacity:.8}
 </style>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -87,44 +58,59 @@ canvas {
 
 <button class="full reset" onclick="resetAll()">🔄 Reset</button>
 
-<!-- TULEMUS -->
 <div class="card" id="result">Ootan sisendit…</div>
 
-<!-- SUUR PANUS -->
-<div class="card big-bet" id="betCard">
-  <div class="label">🎯 JÄRGMINE PANUSTAMINE</div>
-  <div class="amount">—</div>
-  <div class="label">aste: —</div>
+<!-- CONFIDENCE -->
+<div class="card big">
+  <div class="label">🧠 CONFIDENCE</div>
+  <div class="amount" id="confidence">—</div>
 </div>
 
-<!-- GRAAFIK -->
+<!-- NEXT BET -->
+<div class="card big">
+  <div class="label">💰 JÄRGMINE PANUS</div>
+  <div class="amount" id="nextBet">—</div>
+  <div class="small" id="betReason"></div>
+</div>
+
+<!-- CONF LIMIT -->
+<div class="card">
+  <b>⚙️ Minimaalne confidence (%)</b>
+  <input type="number" id="confLimit" value="45"
+         onchange="save()">
+</div>
+
 <div class="card">
   <b>📈 Täpsuse ajalugu</b>
-  <canvas id="chart" height="160"></canvas>
-  <div class="small" id="stats"></div>
+  <canvas id="chart" height="150"></canvas>
 </div>
 
-<!-- PANUSED -->
 <div class="card">
-  <b>💰 Panuse astmed (20)</b>
+  <b>💰 Panuse astmed</b>
   <div id="bets"></div>
 </div>
 
 <script>
 // ===== STATE =====
-let state = JSON.parse(localStorage.getItem("markovState")) || {
-  history: [],
-  transitions: {},
-  miss: 0,
-  bets: Array(20).fill(1),
-  lastPrediction: null,
-  lastResult: null,
-  total: 0,
-  correct: 0,
-  timeline: []
+let state=JSON.parse(localStorage.getItem("markovState"))||{
+  history:[],transitions:{},miss:0,
+  bets:Array(20).fill(1),
+  lastPrediction:null,
+  total:0,correct:0,timeline:[]
 };
 
-// ===== MARKOV =====
+// ===== CONFIDENCE =====
+function confidence(){
+  if(state.history.length<2) return null;
+  let k=state.history.slice(-2).join(",");
+  let r=state.transitions[k];
+  if(!r) return null;
+  let sum=Object.values(r).reduce((a,b)=>a+b,0);
+  let max=Math.max(...Object.values(r));
+  return Math.round(max/sum*100);
+}
+
+// ===== PREDICT =====
 function predict(){
   if(state.history.length<2) return 1;
   let k=state.history.slice(-2).join(",");
@@ -135,17 +121,16 @@ function predict(){
 
 // ===== INPUT =====
 function inputNum(n){
-  if(state.lastPrediction!==null){
+  let conf=confidence();
+  let limit=Number(document.getElementById("confLimit").value);
+
+  // kontrollime ainult kui panustasime
+  if(state.lastPrediction!==null && conf!==null && conf>=limit){
     state.total++;
     if(state.lastPrediction==n){
-      state.correct++;
-      state.miss=0;
-      state.lastResult="ÕIGE";
-      state.timeline.push(1);
-    } else {
-      state.miss++;
-      state.lastResult="MÖÖDA";
-      state.timeline.push(0);
+      state.correct++; state.miss=0; state.timeline.push(1);
+    }else{
+      state.miss++; state.timeline.push(0);
     }
   }
 
@@ -155,65 +140,63 @@ function inputNum(n){
     state.transitions[k][n]=(state.transitions[k][n]||0)+1;
   }
 
-  let next=predict();
-  state.lastPrediction=next;
-
   state.history.push(n);
   if(state.history.length>2) state.history.shift();
+  state.lastPrediction=predict();
 
   save();
-  updateUI(next);
+  updateUI();
   updateChart();
 }
 
 // ===== UI =====
-function updateUI(next){
-  let acc=state.total?((state.correct/state.total)*100).toFixed(1):"—";
+function updateUI(){
+  let conf=confidence();
+  let limit=Number(document.getElementById("confLimit").value);
   let missIdx=Math.min(state.miss,19);
-  let bet=state.bets[missIdx];
+  let baseBet=state.bets[missIdx];
+
+  let bet=0,reason="";
+  if(conf===null){
+    reason="Pole piisavalt andmeid";
+  }else if(conf<limit){
+    reason=`Confidence ${conf}% < ${limit}% → EI PANUSTA`;
+  }else{
+    bet=baseBet;
+    reason="Panus lubatud";
+  }
+
+  let confEl=document.getElementById("confidence");
+  confEl.innerText=conf===null?"—":conf+"%";
+  confEl.className="amount "+(conf>=60?"green":conf>=40?"yellow":"red");
+
+  document.getElementById("nextBet").innerText=bet;
+  document.getElementById("betReason").innerText=reason;
 
   document.getElementById("result").innerHTML=`
-  📥 Sisestatud: <b>${state.history.at(-1)}</b><br><br>
-
-  🔮 Eelmine ennustus: <b>${state.lastPrediction??"—"}</b><br>
-  📊 Tulemus:
-  <b class="${state.lastResult==="ÕIGE"?"ok":"bad"}">
-    ${state.lastResult??"—"}
-  </b><br><br>
-
-  ❌ Mööda järjest: <b>${state.miss}</b><br>
-  👉 JÄRGMINE ENNUSTUS: <span class="big">${next}</span>
+    🔮 Järgmine ennustus: <b>${state.lastPrediction}</b><br>
+    ❌ Mööda järjest: <b>${state.miss}</b><br>
+    📊 Täpsus: ${state.correct}/${state.total}
   `;
-
-  document.querySelector(".big-bet .amount").innerText = bet;
-  document.querySelector(".big-bet .label:last-child").innerText =
-    `aste: ${missIdx+1}`;
-
-  document.getElementById("stats").innerText=
-    `Õige: ${state.correct}/${state.total} (${acc}%)`;
 }
 
 // ===== RESET =====
 function resetAll(){
-  if(!confirm("Nullida kõik?"))return;
-  let keep=state.bets;
-  state={history:[],transitions:{},miss:0,bets:keep,
-    lastPrediction:null,lastResult:null,total:0,correct:0,timeline:[]};
-  save();
-  chart.data.labels=[];chart.data.datasets[0].data=[];chart.update();
-  document.getElementById("result").innerText="Reset tehtud.";
-  document.querySelector(".big-bet .amount").innerText="—";
+  if(!confirm("Reset?"))return;
+  let b=state.bets;
+  state={history:[],transitions:{},miss:0,bets:b,
+    lastPrediction:null,total:0,correct:0,timeline:[]};
+  save();updateUI();updateChart();
 }
 
 // ===== BETS =====
 function drawBets(){
-  let d=document.getElementById("bets");
-  d.innerHTML="";
+  let d=document.getElementById("bets"); d.innerHTML="";
   state.bets.forEach((v,i)=>{
     d.innerHTML+=`
-    <input type="number" value="${v}"
-     onchange="state.bets[${i}]=Number(this.value);save()">
-    <span class="small">aste ${i+1}</span><br>`;
+      <input type="number" value="${v}"
+      onchange="state.bets[${i}]=Number(this.value);save()">
+      <span class="small">aste ${i+1}</span><br>`;
   });
 }
 
@@ -226,7 +209,7 @@ function save(){
 let ctx=document.getElementById("chart").getContext("2d");
 let chart=new Chart(ctx,{
   type:"line",
-  data:{labels:[],datasets:[{data:[],label:"Õige(1)/Mööda(0)",borderWidth:2,tension:0.3}]},
+  data:{labels:[],datasets:[{data:[],label:"Õige(1)/Mööda(0)",tension:.3}]},
   options:{scales:{y:{min:0,max:1,ticks:{stepSize:1}}}}
 });
 function updateChart(){
@@ -237,6 +220,7 @@ function updateChart(){
 
 // INIT
 drawBets();
+updateUI();
 updateChart();
 </script>
 
