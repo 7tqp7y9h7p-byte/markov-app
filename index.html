@@ -115,6 +115,18 @@ let state=JSON.parse(localStorage.getItem("markovState"))||{
   total:0,correct:0,timeline:[]
 };
 
+// ===== VIBRATION =====
+function vibrate(type="normal"){
+  if(!navigator.vibrate) return;
+  switch(type){
+    case "win": navigator.vibrate([60,40,60]); break;
+    case "lose": navigator.vibrate([120,60,120]); break;
+    case "high": navigator.vibrate([40,40,40,40,40]); break;
+    case "low": navigator.vibrate(25); break;
+    default: navigator.vibrate(40);
+  }
+}
+
 // ===== CONFIDENCE =====
 function confidence(){
   if(state.history.length<2) return null;
@@ -139,13 +151,24 @@ function predict(){
 function inputNum(n){
   let conf=confidence();
   let limit=Number(document.getElementById("confLimit").value);
+  let resultType="normal";
+
+  if(conf!==null){
+    if(conf>=60) vibrate("high");
+    else vibrate("low");
+  }
 
   if(state.lastPrediction!==null && conf!==null && conf>=limit){
     state.total++;
     if(state.lastPrediction==n){
-      state.correct++; state.miss=0; state.timeline.push(1);
+      state.correct++;
+      state.miss=0;
+      state.timeline.push(1);
+      resultType="win";
     }else{
-      state.miss++; state.timeline.push(0);
+      state.miss++;
+      state.timeline.push(0);
+      resultType="lose";
     }
   }
 
@@ -162,6 +185,7 @@ function inputNum(n){
   save();
   updateUI();
   updateChart();
+  vibrate(resultType);
 }
 
 // ===== UI =====
@@ -181,17 +205,14 @@ function updateUI(){
     reason="Panus lubatud";
   }
 
-  // Ennustus
   document.getElementById("nextPrediction").innerText=
     state.lastPrediction ?? "—";
 
-  // Confidence (väike)
   let cEl=document.getElementById("confidence");
   cEl.innerText=conf===null?"Confidence —":"Confidence "+conf+"%";
   cEl.className="confSmall "+
     (conf>=60?"green":conf>=40?"yellow":"red");
 
-  // Panus
   document.getElementById("nextBet").innerText=bet;
   document.getElementById("betReason").innerText=reason;
 
