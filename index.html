@@ -23,6 +23,13 @@ button {
   background: #2563eb;
   color: white;
 }
+.full {
+  width:100%;
+  margin-top:10px;
+}
+.reset {
+  background:#dc2626;
+}
 .card {
   background: #1e293b;
   padding: 12px;
@@ -37,7 +44,11 @@ input {
 .small { font-size: 14px; opacity: 0.85; }
 .ok { color: #22c55e; }
 .bad { color: #ef4444; }
+canvas { background:#020617;border-radius:12px; }
 </style>
+
+<!-- Chart.js CDN -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 
 <body>
@@ -51,8 +62,16 @@ input {
   <button onclick="inputNum(3)">3</button>
 </div>
 
+<button class="full reset" onclick="resetAll()">🔄 Reset</button>
+
 <div class="card" id="result">
 Ootan sisendit…
+</div>
+
+<div class="card">
+<b>📈 Täpsuse graafik</b><br>
+<canvas id="chart" height="180"></canvas>
+<div class="small" id="stats"></div>
 </div>
 
 <div class="card">
@@ -70,7 +89,10 @@ let state = JSON.parse(localStorage.getItem("markovState")) || {
   miss: 0,
   bets: Array(20).fill(1),
   lastPrediction: null,
-  lastResult: null
+  lastResult: null,
+  total: 0,
+  correct: 0,
+  timeline: [] // 1 = õige, 0 = mööda
 };
 
 // =======================
@@ -78,39 +100,162 @@ let state = JSON.parse(localStorage.getItem("markovState")) || {
 // =======================
 function predict() {
   if (state.history.length < 2) return 1;
-
   let key = state.history.slice(-2).join(",");
   let row = state.transitions[key];
   if (!row) return 1;
-
-  return Object.keys(row).reduce((a, b) =>
-    row[a] > row[b] ? a : b
-  );
+  return Object.keys(row).reduce((a,b)=>row[a]>row[b]?a:b);
 }
 
 // =======================
-// INPUT HANDLER
+// INPUT
 // =======================
 function inputNum(n) {
 
-  // 1️⃣ Kontrollime EELMIST ennustust
+  // Kontrollime EELMIST ennustust
   if (state.lastPrediction !== null) {
+    state.total += 1;
     if (state.lastPrediction == n) {
       state.lastResult = "ÕIGE";
+      state.correct += 1;
+      state.timeline.push(1);
       state.miss = 0;
     } else {
       state.lastResult = "MÖÖDA";
+      state.timeline.push(0);
       state.miss += 1;
     }
   }
 
-  // 2️⃣ Õpime Markovi mudelit
+  // Õppimine
   if (state.history.length >= 2) {
     let key = state.history.slice(-2).join(",");
     if (!state.transitions[key]) state.transitions[key] = {};
     state.transitions[key][n] = (state.transitions[key][n] || 0) + 1;
   }
 
-  // 3️⃣ UUS ennustus järgmise sammu jaoks
+  // Uus ennustus
   let nextPrediction = predict();
- 
+  state.lastPrediction = nextPrediction;
+
+  // Ajalugu
+  state.history.push(n);
+  if (state.history.length > 2) state.history.shift();
+
+  save();
+  updateUI(nextPrediction);
+  updateChart();
+}
+
+// =======================
+// UI
+// =======================
+function updateUI(nextPrediction){
+  let acc = state.total
+    ? ((state.correct/state.total)*100).toFixed(1)
+    : "—";
+
+  document.getElementById("result").innerHTML = `
+    📥 Sisestatud: <b>${state.history[state.history.length-1]}</b><br><br>
+
+    🔮 Eelmine ennustus: <b>${state.lastPrediction ?? "—"}</b><br>
+    📊 Tulemus:
+    <b class="${state.lastResult==="ÕIGE"?"ok":"bad"}">
+      ${state.lastResult ?? "—"}
+    </b><br><br>
+
+    ❌ Mööda järjest: <b>${state.miss}</b><br>
+    💰 Soovituslik panus:
+    <b>${state.bets[Math.min(state.miss,19)]}</b><br><br>
+
+    👉 JÄRGMINE ennustus: <b>${nextPrediction}</b>
+  `;
+
+  document.getElementById("stats").innerHTML =
+    `Õige: ${state.correct} / ${state.total} (${acc}%)`;
+}
+
+// =======================
+// RESET
+// =======================
+function resetAll(){
+  if (!confirm("Kas soovid kogu mudeli ja statistika nullida?")) return;
+
+  let keepBets = state.bets;
+
+  state = {
+    history: [],
+    transitions: {},
+    miss: 0,
+    bets: keepBets,
+    lastPrediction: null,
+    lastResult: null,
+    total: 0,
+    correct: 0,
+    timeline: []
+  };
+
+  save();
+  chart.data.labels = [];
+  chart.data.datasets[0].data = [];
+  chart.update();
+
+  document.getElementById("result").innerHTML =
+    "🔄 Reset tehtud. Ootan uut sisendit…";
+}
+
+// =======================
+// BETS
+// =======================
+function drawBets(){
+  let d = document.getElementById("bets");
+  d.innerHTML="";
+  state.bets.forEach((v,i)=>{
+    d.innerHTML+=`
+      <input type="number" value="${v}"
+       onchange="state.bets[${i}]=Number(this.value);save()">
+      <span class="small">aste ${i+1}</span><br>`;
+  });
+}
+
+// =======================
+// STORAGE
+// =======================
+function save(){
+  localStorage.setItem("markovState",JSON.stringify(state));
+}
+
+// =======================
+// CHART
+// =======================
+let ctx = document.getElementById("chart").getContext("2d");
+let chart = new Chart(ctx,{
+  type:"line",
+  data:{
+    labels:[],
+    datasets:[{
+      label:"Täpsus (1=õige, 0=mööda)",
+      data:[],
+      tension:0.3,
+      borderWidth:2
+    }]
+  },
+  options:{
+    scales:{
+      y:{min:0,max:1,ticks:{stepSize:1}}
+    }
+  }
+});
+
+function updateChart(){
+  chart.data.labels = state.timeline.map((_,i)=>i+1);
+  chart.data.datasets[0].data = state.timeline;
+  chart.update();
+}
+
+// INIT
+drawBets();
+updateChart();
+</script>
+
+</body>
+</html>
