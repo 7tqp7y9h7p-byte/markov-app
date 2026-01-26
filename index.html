@@ -35,6 +35,8 @@ input {
   margin: 3px 0;
 }
 .small { font-size: 14px; opacity: 0.85; }
+.ok { color: #22c55e; }
+.bad { color: #ef4444; }
 </style>
 </head>
 
@@ -49,7 +51,9 @@ input {
   <button onclick="inputNum(3)">3</button>
 </div>
 
-<div class="card" id="result">Ootan sisendit…</div>
+<div class="card" id="result">
+Ootan sisendit…
+</div>
 
 <div class="card">
 <b>💰 Panused (20 astet)</b><br>
@@ -57,7 +61,9 @@ input {
 </div>
 
 <script>
-// ---------- STATE ----------
+// =======================
+// STATE
+// =======================
 let state = JSON.parse(localStorage.getItem("markovState")) || {
   history: [],
   transitions: {},
@@ -67,52 +73,44 @@ let state = JSON.parse(localStorage.getItem("markovState")) || {
   lastResult: null
 };
 
-// ---------- MARKOV ----------
+// =======================
+// MARKOV PREDICT
+// =======================
 function predict() {
   if (state.history.length < 2) return 1;
+
   let key = state.history.slice(-2).join(",");
   let row = state.transitions[key];
   if (!row) return 1;
 
-  return Object.keys(row).reduce((a,b)=>row[a]>row[b]?a:b);
+  return Object.keys(row).reduce((a, b) =>
+    row[a] > row[b] ? a : b
+  );
 }
 
+// =======================
+// INPUT HANDLER
+// =======================
 function inputNum(n) {
-  let pred = predict();
 
+  // 1️⃣ Kontrollime EELMIST ennustust
+  if (state.lastPrediction !== null) {
+    if (state.lastPrediction == n) {
+      state.lastResult = "ÕIGE";
+      state.miss = 0;
+    } else {
+      state.lastResult = "MÖÖDA";
+      state.miss += 1;
+    }
+  }
+
+  // 2️⃣ Õpime Markovi mudelit
   if (state.history.length >= 2) {
     let key = state.history.slice(-2).join(",");
     if (!state.transitions[key]) state.transitions[key] = {};
     state.transitions[key][n] = (state.transitions[key][n] || 0) + 1;
   }
 
-  state.miss = (pred == n) ? 0 : state.miss + 1;
-  state.history.push(n);
-  if (state.history.length > 2) state.history.shift();
-
-  localStorage.setItem("markovState", JSON.stringify(state));
-
-  document.getElementById("result").innerHTML =
-    `🎯 Ennustus: <b>${pred}</b><br>
-     📥 Sisend: <b>${n}</b><br>
-     ❌ Mööda järjest: <b>${state.miss}</b><br>
-     💰 Soovituslik panus: <b>${state.bets[Math.min(state.miss,19)]}</b>`;
-}
-
-// ---------- BETS UI ----------
-function drawBets() {
-  let d = document.getElementById("bets");
-  d.innerHTML = "";
-  state.bets.forEach((v,i)=>{
-    d.innerHTML +=
-      `<input type="number" value="${v}"
-       onchange="state.bets[${i}]=Number(this.value);
-       localStorage.setItem('markovState',JSON.stringify(state))">
-       <span class="small">aste ${i+1}</span><br>`;
-  });
-}
-drawBets();
-</script>
-
-</body>
-</html>
+  // 3️⃣ UUS ennustus järgmise sammu jaoks
+  let nextPrediction = predict();
+ 
