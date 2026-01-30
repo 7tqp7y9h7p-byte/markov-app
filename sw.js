@@ -1,7 +1,7 @@
 const CACHE = "markov-pwa-v1";
 const ASSETS = [
   "./",
-  "./index.html",
+  "./Makrov_pro.html",
   "./manifest.json",
   "./icon-192.png",
   "./icon-512.png"
