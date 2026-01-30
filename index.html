@@ -3,19 +3,24 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Markov Test</title>
+<title>Markov Ennustaja</title>
+
 <style>
-body{font-family:-apple-system;background:#020617;color:white;padding:20px}
+body{font-family:-apple-system;background:#020617;color:white;padding:18px}
 button{width:22%;padding:16px;font-size:22px;margin:1%;border-radius:12px;border:none;background:#2563eb;color:white}
 .card{background:#0f172a;padding:16px;border-radius:14px;margin-top:16px;text-align:center}
-.big{font-size:42px;font-weight:bold}
-.small{opacity:.7}
+.big{font-size:44px;font-weight:bold}
+.small{opacity:.7;font-size:14px}
+.green{color:#22c55e}
+.red{color:#ef4444}
+.yellow{color:#eab308}
+input{width:100%;margin-top:6px}
 </style>
 </head>
 
 <body>
 
-<h2>🧪 Markov – BAAS</h2>
+<h2>📊 Markov Ennustaja</h2>
 
 <div>
 <button onclick="inputNum(0)">0</button>
@@ -25,56 +30,126 @@ button{width:22%;padding:16px;font-size:22px;margin:1%;border-radius:12px;border
 </div>
 
 <div class="card">
-<div class="small">Viimane sisestus</div>
-<div class="big" id="last">—</div>
+<div class="small">JÄRGMINE ENNUSTUS</div>
+<div class="big" id="pred">—</div>
+<div id="conf" class="small">Confidence —</div>
 </div>
 
 <div class="card">
-<div class="small">Järgmine ennustus</div>
-<div class="big" id="pred">—</div>
-<div class="small" id="conf">Confidence —</div>
+<div class="small">JÄRGMINE PANUS</div>
+<div class="big" id="bet">—</div>
+<div id="betNote" class="small"></div>
+</div>
+
+<div class="card">
+<div class="small">BANKROLL</div>
+<div class="big" id="bank">—</div>
+<div class="small" id="stats"></div>
+</div>
+
+<div class="card">
+<b>⚙️ Seaded</b>
+<label>Algne bankroll</label>
+<input id="startBank" type="number" value="1000">
+<label>Panus</label>
+<input id="betSize" type="number" value="10">
+<label>Min confidence %</label>
+<input id="confLimit" type="number" value="50">
 </div>
 
 <script>
-let history=[];
-let transitions={};
+let state = JSON.parse(localStorage.getItem("mk2")) || {
+ history:[], transitions:{},
+ lastPrediction:null,
+ bankroll:1000,
+ correct:0, total:0
+};
 
-function inputNum(n){
-  document.getElementById("last").innerText=n;
-
-  if(history.length>=2){
-    let key=history.slice(-2).join(",");
-    transitions[key]??={};
-    transitions[key][n]=(transitions[key][n]||0)+1;
-  }
-
-  history.push(n);
-  if(history.length>2)history.shift();
-
-  let p=predict();
-  let c=confidence();
-
-  document.getElementById("pred").innerText=p;
-  document.getElementById("conf").innerText=
-    c?("Confidence "+c+"%"):"—";
+function confidence(){
+ if(state.history.length<2) return null;
+ let k=state.history.slice(-2).join(",");
+ let r=state.transitions[k];
+ if(!r) return null;
+ let sum=Object.values(r).reduce((a,b)=>a+b,0);
+ let max=Math.max(...Object.values(r));
+ return Math.round(max/sum*100);
 }
 
 function predict(){
-  if(history.length<2)return "—";
-  let key=history.join(",");
-  let r=transitions[key];
-  if(!r)return "—";
-  return Object.keys(r).reduce((a,b)=>r[a]>r[b]?a:b);
+ if(state.history.length<2) return null;
+ let k=state.history.slice(-2).join(",");
+ let r=state.transitions[k];
+ if(!r) return null;
+ return +Object.keys(r).reduce((a,b)=>r[a]>r[b]?a:b);
 }
 
-function confidence(){
-  if(history.length<2)return null;
-  let r=transitions[history.join(",")];
-  if(!r)return null;
-  let sum=Object.values(r).reduce((a,b)=>a+b,0);
-  let max=Math.max(...Object.values(r));
-  return Math.round(max/sum*100);
+function inputNum(n){
+ let conf=confidence();
+ let limit=+confLimit.value;
+ let bet=+betSize.value;
+
+ if(state.lastPrediction!==null && conf!==null && conf>=limit){
+   state.total++;
+   if(state.lastPrediction===n){
+     state.correct++;
+     state.bankroll+=bet;
+   }else{
+     state.bankroll-=bet;
+   }
+ }
+
+ if(state.history.length>=2){
+   let k=state.history.slice(-2).join(",");
+   state.transitions[k]??={};
+   state.transitions[k][n]=(state.transitions[k][n]||0)+1;
+ }
+
+ state.history.push(n);
+ if(state.history.length>2) state.history.shift();
+
+ state.lastPrediction=predict();
+ save();
+ updateUI();
 }
+
+function updateUI(){
+ let conf=confidence();
+ let limit=+confLimit.value;
+ let bet=+betSize.value;
+
+ pred.innerText = state.lastPrediction ?? "—";
+ confElem(conf);
+
+ betElem(conf,limit,bet);
+
+ bank.innerText = state.bankroll.toFixed(2);
+ stats.innerText = state.total
+   ? `Õige ${state.correct}/${state.total}`
+   : "—";
+}
+
+function confElem(conf){
+ if(conf===null){confEl("—","");return;}
+ let c = conf>=60?"green":conf>=40?"yellow":"red";
+ confEl(`Confidence ${conf}%`,c);
+}
+function confEl(t,c){conf.innerText=t;conf.className="small "+c;}
+
+function betElem(conf,limit,bet){
+ if(conf!==null && conf>=limit){
+   bet.innerText=bet;
+   betNote.innerText="Panus lubatud";
+ }else{
+   bet.innerText=0;
+   betNote.innerText="EI PANUSTA";
+ }
+}
+
+function save(){
+ localStorage.setItem("mk2",JSON.stringify(state));
+}
+
+updateUI();
 </script>
 
 </body>
