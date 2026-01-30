@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="et">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Markov Test</title>
+<style>
+body{font-family:-apple-system;background:#020617;color:white;padding:20px}
+button{width:22%;padding:16px;font-size:22px;margin:1%;border-radius:12px;border:none;background:#2563eb;color:white}
+.card{background:#0f172a;padding:16px;border-radius:14px;margin-top:16px;text-align:center}
+.big{font-size:42px;font-weight:bold}
+.small{opacity:.7}
+</style>
+</head>
+
+<body>
+
+<h2>🧪 Markov – BAAS</h2>
+
+<div>
+<button onclick="inputNum(0)">0</button>
+<button onclick="inputNum(1)">1</button>
+<button onclick="inputNum(2)">2</button>
+<button onclick="inputNum(3)">3</button>
+</div>
+
+<div class="card">
+<div class="small">Viimane sisestus</div>
+<div class="big" id="last">—</div>
+</div>
+
+<div class="card">
+<div class="small">Järgmine ennustus</div>
+<div class="big" id="pred">—</div>
+<div class="small" id="conf">Confidence —</div>
+</div>
+
+<script>
+let history=[];
+let transitions={};
+
+function inputNum(n){
+  document.getElementById("last").innerText=n;
+
+  if(history.length>=2){
+    let key=history.slice(-2).join(",");
+    transitions[key]??={};
+    transitions[key][n]=(transitions[key][n]||0)+1;
+  }
+
+  history.push(n);
+  if(history.length>2)history.shift();
+
+  let p=predict();
+  let c=confidence();
+
+  document.getElementById("pred").innerText=p;
+  document.getElementById("conf").innerText=
+    c?("Confidence "+c+"%"):"—";
+}
+
+function predict(){
+  if(history.length<2)return "—";
+  let key=history.join(",");
+  let r=transitions[key];
+  if(!r)return "—";
+  return Object.keys(r).reduce((a,b)=>r[a]>r[b]?a:b);
+}
+
+function confidence(){
+  if(history.length<2)return null;
+  let r=transitions[history.join(",")];
+  if(!r)return null;
+  let sum=Object.values(r).reduce((a,b)=>a+b,0);
+  let max=Math.max(...Object.values(r));
+  return Math.round(max/sum*100);
+}
+</script>
+
+</body>
+</html>
