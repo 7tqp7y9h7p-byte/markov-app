@@ -3,28 +3,29 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Markov Ennustaja</title>
+<title>Markov Ennustaja PRO</title>
 
 <style>
-body{font-family:-apple-system;background:#020617;color:white;padding:18px}
+body{font-family:-apple-system;background:#020617;color:white;padding:16px}
 button{width:22%;padding:16px;font-size:22px;margin:1%;border-radius:12px;border:none;background:#2563eb;color:white}
 .reset{background:#dc2626;width:100%;margin-top:10px}
-.card{background:#0f172a;padding:16px;border-radius:14px;margin-top:16px}
+.card{background:#0f172a;padding:16px;border-radius:14px;margin-top:14px}
 .big{font-size:42px;font-weight:bold;text-align:center}
 .small{opacity:.7;font-size:14px;text-align:center}
 .green{color:#22c55e}
 .red{color:#ef4444}
 .yellow{color:#eab308}
-input{width:100%;margin:4px 0}
+input,select{width:100%;margin:4px 0}
 table{width:100%;margin-top:8px}
 td{padding:4px;font-size:13px}
 .active{background:#1d4ed8}
+canvas{width:100%;height:160px}
 </style>
 </head>
 
 <body>
 
-<h2>📊 Markov Ennustaja</h2>
+<h2>📊 Markov Ennustaja PRO</h2>
 
 <div>
 <button onclick="inputNum(0)">0</button>
@@ -50,30 +51,39 @@ td{padding:4px;font-size:13px}
 <div class="card">
 <div class="small">🏦 BANKROLL</div>
 <div class="big" id="bank">—</div>
-<div class="small" id="stats"></div>
+<canvas id="chart"></canvas>
 </div>
 
 <div class="card">
 <b>⚙️ Seaded</b>
 <label>Algne bankroll</label>
 <input id="startBank" type="number" value="1000">
+
 <label>Min confidence %</label>
 <input id="confLimit" type="number" value="50">
+
+<label>Panustamise režiim</label>
+<select id="betMode" onchange="updateUI()">
+<option value="manual">Manual</option>
+<option value="martingale">Martingale</option>
+<option value="fibo">Fibonacci</option>
+</select>
 </div>
 
-<div class="card">
-<b>📋 Panustamistabel (20)</b>
+<div class="card" id="manualBox">
+<b>📋 Manual panustamistabel (20)</b>
 <table id="betTable"></table>
 </div>
 
 <script>
-let state = JSON.parse(localStorage.getItem("mk3")) || {
+let fibo=[1,1,2,3,5,8,13,21,34,55,89,144,233,377];
+let state=JSON.parse(localStorage.getItem("mk_pro"))||{
  history:[], transitions:{},
  lastPrediction:null,
  bankroll:1000,
- correct:0, total:0,
- miss:0,
- bets:Array.from({length:20},(_,i)=>Math.pow(2,i))
+ correct:0,total:0,miss:0,
+ bets:Array.from({length:20},(_,i)=>Math.pow(2,i)),
+ bankHist:[1000]
 };
 
 function confidence(){
@@ -94,14 +104,24 @@ function predict(){
  return +Object.keys(r).reduce((a,b)=>r[a]>r[b]?a:b);
 }
 
-function getBet(){
+function baseBet(){
+ let mode=betMode.value;
+ if(mode==="martingale") return Math.pow(2,state.miss);
+ if(mode==="fibo") return fibo[Math.min(state.miss,fibo.length-1)];
  return state.bets[Math.min(state.miss,19)];
+}
+
+function scaledBet(conf){
+ let b=baseBet();
+ if(conf>=70) return b*2;
+ if(conf>=60) return b*1.5;
+ return b;
 }
 
 function inputNum(n){
  let conf=confidence();
  let limit=+confLimit.value;
- let bet=getBet();
+ let bet=conf!==null?scaledBet(conf):0;
 
  if(state.lastPrediction!==null && conf!==null && conf>=limit){
    state.total++;
@@ -113,6 +133,7 @@ function inputNum(n){
      state.bankroll-=bet;
      state.miss++;
    }
+   state.bankHist.push(state.bankroll);
  }
 
  if(state.history.length>=2){
@@ -123,35 +144,27 @@ function inputNum(n){
 
  state.history.push(n);
  if(state.history.length>2) state.history.shift();
-
  state.lastPrediction=predict();
- save();
- updateUI();
+ save(); updateUI();
 }
 
 function updateUI(){
  let conf=confidence();
- let limit=+confLimit.value;
- let bet=getBet();
-
  pred.innerText=state.lastPrediction??"—";
- if(conf===null){
-   confText("Confidence —","");
- }else{
-   confText(`Confidence ${conf}%`, conf>=60?"green":conf>=40?"yellow":"red");
- }
+ conf.innerText=conf?`Confidence ${conf}%`:"Confidence —";
+ conf.className="small "+(conf>=60?"green":conf>=40?"yellow":"red");
 
- if(conf!==null && conf>=limit){
-   betElem(bet,"Panus lubatud");
+ if(conf!==null && conf>=confLimit.value){
+   bet.innerText=scaledBet(conf).toFixed(2);
+   betNote.innerText="Panus lubatud";
  }else{
-   betElem(0,"EI PANUSTA");
+   bet.innerText="0";
+   betNote.innerText="EI PANUSTA";
  }
 
  bank.innerText=state.bankroll.toFixed(2);
- stats.innerText=state.total
-  ? `Õige ${state.correct}/${state.total} | Mööda ${state.miss}`
-  : "—";
-
+ drawChart();
+ manualBox.style.display=betMode.value==="manual"?"block":"none";
  renderTable();
 }
 
@@ -160,15 +173,28 @@ function renderTable(){
  state.bets.forEach((b,i)=>{
   h+=`<tr class="${i===state.miss?"active":""}">
   <td>#${i+1}</td>
-  <td><input type="number" value="${b}" 
-    onchange="state.bets[${i}]=Number(this.value);save()"></td>
-  </tr>`;
+  <td><input type="number" value="${b}"
+   onchange="state.bets[${i}]=+this.value;save()"></td></tr>`;
  });
  betTable.innerHTML=h;
 }
 
-function confText(t,c){conf.innerText=t;conf.className="small "+c;}
-function betElem(v,t){bet.innerText=v;betNote.innerText=t;}
+function drawChart(){
+ let c=document.getElementById("chart");
+ let ctx=c.getContext("2d");
+ ctx.clearRect(0,0,c.width,c.height);
+ let m=Math.max(...state.bankHist);
+ let mn=Math.min(...state.bankHist);
+ let r=m-mn||1;
+ state.bankHist.forEach((v,i)=>{
+  let x=i*(c.width/(state.bankHist.length-1||1));
+  let y=c.height-(v-mn)/r*c.height;
+  if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+ });
+ ctx.strokeStyle="#22c55e";
+ ctx.lineWidth=2;
+ ctx.stroke();
+}
 
 function resetAll(){
  state.history=[];
@@ -178,14 +204,11 @@ function resetAll(){
  state.total=0;
  state.miss=0;
  state.bankroll=+startBank.value;
- save();
- updateUI();
+ state.bankHist=[state.bankroll];
+ save(); updateUI();
 }
 
-function save(){
- localStorage.setItem("mk3",JSON.stringify(state));
-}
-
+function save(){localStorage.setItem("mk_pro",JSON.stringify(state));}
 updateUI();
 </script>
 
