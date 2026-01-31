@@ -112,12 +112,13 @@ function inputNum(n){
  let limit=+confLimit.value;
  let bet=currentBet();
 
+ // ---- PANUSTAMINE ----
  if(state.lastPrediction!==null && conf!==null && conf>=limit){
    state.betsPlaced++;
    if(state.lastPrediction===n){
      state.wins++;
-     state.bankroll += bet*3;
-     state.miss=0;
+     state.bankroll += bet * 2; // ✅ VÕIT = 2× PANUS
+     state.miss = 0;
    }else{
      state.losses++;
      state.bankroll -= bet;
@@ -125,22 +126,23 @@ function inputNum(n){
    }
  }
 
+ // ---- ÕPPIMINE ----
  if(state.history.length>=2){
    let k=state.history.slice(-2).join(",");
-   state.transitions[k]??={};
-   state.transitions[k][n]=(state.transitions[k][n]||0)+1;
+   state.transitions[k] ??= {};
+   state.transitions[k][n] = (state.transitions[k][n]||0)+1;
  }
 
  state.history.push(n);
  if(state.history.length>2)state.history.shift();
 
- state.lastPrediction=predict();
+ state.lastPrediction = predict();
  save(); updateUI();
 }
 
 function updateUI(){
  let conf=confidence();
- pred.innerText=state.lastPrediction??"—";
+ pred.innerText = state.lastPrediction ?? "—";
 
  if(conf===null) confText("Confidence —","");
  else confText(`Confidence ${conf}%`,conf>=60?"green":conf>=40?"yellow":"red");
@@ -153,25 +155,25 @@ function updateUI(){
    betNote.innerText="EI PANUSTA";
  }
 
- bank.innerText=state.bankroll.toFixed(2);
+ bank.innerText = state.bankroll.toFixed(2);
 
- betsPlaced.innerText=state.betsPlaced;
- wins.innerText=state.wins;
- losses.innerText=state.losses;
- winrate.innerText=state.betsPlaced
-  ?Math.round(state.wins/state.betsPlaced*100)+"%"
-  :"—";
+ betsPlaced.innerText = state.betsPlaced;
+ wins.innerText = state.wins;
+ losses.innerText = state.losses;
+ winrate.innerText = state.betsPlaced
+  ? Math.round(state.wins/state.betsPlaced*100)+"%"
+  : "—";
 
  renderTable();
 }
 
 function renderTable(){
- betTable.innerHTML=state.bets.map((b,i)=>`
+ betTable.innerHTML = state.bets.map((b,i)=>`
  <tr class="${i===state.miss?"active":""}">
   <td>#${i+1}</td>
   <td>
    <input type="number" value="${b}"
-    onchange="state.bets[${i}]=+this.value;save()">
+    onchange="state.bets[${i}] = +this.value; save()">
   </td>
  </tr>`).join("");
 }
@@ -190,7 +192,7 @@ function resetAll(){
  state.betsPlaced=0;
  state.wins=0;
  state.losses=0;
- save();updateUI();
+ save(); updateUI();
 }
 
 function save(){
