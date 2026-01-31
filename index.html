@@ -19,7 +19,6 @@ input{width:100%}
 table{width:100%}
 td{padding:4px;font-size:13px}
 .active{background:#1d4ed8}
-canvas{width:100%;height:160px}
 </style>
 </head>
 
@@ -51,7 +50,6 @@ canvas{width:100%;height:160px}
 <div class="card">
 <div class="small">🏦 BANKROLL</div>
 <div class="big" id="bank">—</div>
-<canvas id="chart"></canvas>
 </div>
 
 <div class="card">
@@ -71,18 +69,17 @@ canvas{width:100%;height:160px}
 </div>
 
 <div class="card">
-<b>📋 Panustamistabel</b>
+<b>📋 Panustamistabel (20 sammu)</b>
 <table id="betTable"></table>
 </div>
 
 <script>
-let state=JSON.parse(localStorage.getItem("mk_counter"))||{
+let state=JSON.parse(localStorage.getItem("mk_state"))||{
  history:[], transitions:{},
  lastPrediction:null,
  bankroll:1000,
  miss:0,
  bets:Array.from({length:20},(_,i)=>Math.pow(2,i)),
- bankHist:[1000],
  betsPlaced:0,
  wins:0,
  losses:0
@@ -115,7 +112,6 @@ function inputNum(n){
  let limit=+confLimit.value;
  let bet=currentBet();
 
- // ---- PANUSE TULEMUS ----
  if(state.lastPrediction!==null && conf!==null && conf>=limit){
    state.betsPlaced++;
    if(state.lastPrediction===n){
@@ -127,10 +123,8 @@ function inputNum(n){
      state.bankroll -= bet;
      state.miss++;
    }
-   state.bankHist.push(state.bankroll);
  }
 
- // ---- ÕPPIMINE ----
  if(state.history.length>=2){
    let k=state.history.slice(-2).join(",");
    state.transitions[k]??={};
@@ -168,7 +162,6 @@ function updateUI(){
   ?Math.round(state.wins/state.betsPlaced*100)+"%"
   :"—";
 
- drawChart();
  renderTable();
 }
 
@@ -176,33 +169,23 @@ function renderTable(){
  betTable.innerHTML=state.bets.map((b,i)=>`
  <tr class="${i===state.miss?"active":""}">
   <td>#${i+1}</td>
-  <td><input type="number" value="${b}"
-   onchange="state.bets[${i}]=+this.value;save()"></td>
+  <td>
+   <input type="number" value="${b}"
+    onchange="state.bets[${i}]=+this.value;save()">
+  </td>
  </tr>`).join("");
 }
 
-function drawChart(){
- let c=chart,ctx=c.getContext("2d");
- ctx.clearRect(0,0,c.width,c.height);
- let max=Math.max(...state.bankHist),min=Math.min(...state.bankHist);
- let r=max-min||1;
- ctx.beginPath();
- state.bankHist.forEach((v,i)=>{
-  let x=i*(c.width/(state.bankHist.length-1||1));
-  let y=c.height-(v-min)/r*c.height;
-  i?ctx.lineTo(x,y):ctx.moveTo(x,y);
- });
- ctx.strokeStyle="#22c55e";ctx.lineWidth=2;ctx.stroke();
+function confText(t,c){
+ conf.innerText=t;
+ conf.className="small "+c;
 }
-
-function confText(t,c){conf.innerText=t;conf.className="small "+c}
 
 function resetAll(){
  state.history=[];
  state.transitions={};
  state.lastPrediction=null;
  state.bankroll=+startBank.value;
- state.bankHist=[state.bankroll];
  state.miss=0;
  state.betsPlaced=0;
  state.wins=0;
@@ -211,7 +194,7 @@ function resetAll(){
 }
 
 function save(){
- localStorage.setItem("mk_counter",JSON.stringify(state));
+ localStorage.setItem("mk_state",JSON.stringify(state));
 }
 
 updateUI();
