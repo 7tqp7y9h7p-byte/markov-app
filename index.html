@@ -3,20 +3,20 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Markov Ennustaja – Stabiilne</title>
+<title>Markov Ennustaja</title>
 
 <style>
 body{font-family:-apple-system;background:#020617;color:white;padding:16px}
 button{width:22%;padding:16px;font-size:22px;margin:1%;border-radius:12px;border:none;background:#2563eb;color:white}
 .reset{background:#dc2626;width:100%;margin-top:10px}
 .card{background:#0f172a;padding:16px;border-radius:14px;margin-top:14px}
-.big{font-size:42px;font-weight:bold;text-align:center}
+.big{font-size:40px;font-weight:bold;text-align:center}
 .small{opacity:.7;font-size:14px;text-align:center}
 .green{color:#22c55e}
 .red{color:#ef4444}
 .yellow{color:#eab308}
-input,select{width:100%;margin:4px 0}
-table{width:100%;margin-top:8px}
+input{width:100%}
+table{width:100%}
 td{padding:4px;font-size:13px}
 .active{background:#1d4ed8}
 canvas{width:100%;height:160px}
@@ -55,6 +55,14 @@ canvas{width:100%;height:160px}
 </div>
 
 <div class="card">
+<b>🧮 Panustamise loendur</b>
+<div class="small">Panuseid kokku: <b id="betsPlaced">0</b></div>
+<div class="small green">Võite: <b id="wins">0</b></div>
+<div class="small red">Kaotusi: <b id="losses">0</b></div>
+<div class="small">Winrate: <b id="winrate">—</b></div>
+</div>
+
+<div class="card">
 <b>⚙️ Seaded</b>
 <label>Algne bankroll</label>
 <input id="startBank" type="number" value="1000">
@@ -63,36 +71,38 @@ canvas{width:100%;height:160px}
 </div>
 
 <div class="card">
-<b>📋 Panustamistabel (20)</b>
+<b>📋 Panustamistabel</b>
 <table id="betTable"></table>
 </div>
 
 <script>
-let state=JSON.parse(localStorage.getItem("mk_fix"))||{
+let state=JSON.parse(localStorage.getItem("mk_counter"))||{
  history:[], transitions:{},
  lastPrediction:null,
  bankroll:1000,
  miss:0,
- correct:0,total:0,
  bets:Array.from({length:20},(_,i)=>Math.pow(2,i)),
- bankHist:[1000]
+ bankHist:[1000],
+ betsPlaced:0,
+ wins:0,
+ losses:0
 };
 
 function confidence(){
- if(state.history.length<2) return null;
+ if(state.history.length<2)return null;
  let k=state.history.slice(-2).join(",");
  let r=state.transitions[k];
- if(!r) return null;
+ if(!r)return null;
  let sum=Object.values(r).reduce((a,b)=>a+b,0);
  let max=Math.max(...Object.values(r));
  return Math.round(max/sum*100);
 }
 
 function predict(){
- if(state.history.length<2) return null;
+ if(state.history.length<2)return null;
  let k=state.history.slice(-2).join(",");
  let r=state.transitions[k];
- if(!r) return null;
+ if(!r)return null;
  return +Object.keys(r).reduce((a,b)=>r[a]>r[b]?a:b);
 }
 
@@ -105,68 +115,70 @@ function inputNum(n){
  let limit=+confLimit.value;
  let bet=currentBet();
 
- // ---- TULEMUSE HINDAMINE ----
+ // ---- PANUSE TULEMUS ----
  if(state.lastPrediction!==null && conf!==null && conf>=limit){
-   state.total++;
+   state.betsPlaced++;
    if(state.lastPrediction===n){
-     state.correct++;
-     state.bankroll += bet * 3;   // VÕIT = 3x
-     state.miss = 0;
+     state.wins++;
+     state.bankroll += bet*3;
+     state.miss=0;
    }else{
+     state.losses++;
      state.bankroll -= bet;
      state.miss++;
    }
    state.bankHist.push(state.bankroll);
  }
 
- // ---- MUDELI ÕPPIMINE ----
+ // ---- ÕPPIMINE ----
  if(state.history.length>=2){
    let k=state.history.slice(-2).join(",");
-   state.transitions[k] ??= {};
-   state.transitions[k][n] = (state.transitions[k][n]||0)+1;
+   state.transitions[k]??={};
+   state.transitions[k][n]=(state.transitions[k][n]||0)+1;
  }
 
  state.history.push(n);
- if(state.history.length>2) state.history.shift();
+ if(state.history.length>2)state.history.shift();
 
- state.lastPrediction = predict();
- save();
- updateUI();
+ state.lastPrediction=predict();
+ save(); updateUI();
 }
 
 function updateUI(){
  let conf=confidence();
- pred.innerText = state.lastPrediction ?? "—";
+ pred.innerText=state.lastPrediction??"—";
 
- if(conf===null){
-   confText("Confidence —","");
- }else{
-   confText(`Confidence ${conf}%`, conf>=60?"green":conf>=40?"yellow":"red");
- }
+ if(conf===null) confText("Confidence —","");
+ else confText(`Confidence ${conf}%`,conf>=60?"green":conf>=40?"yellow":"red");
 
  if(conf!==null && conf>=confLimit.value){
-   bet.innerText = currentBet();
-   betNote.innerText = "Panus lubatud";
+   bet.innerText=currentBet();
+   betNote.innerText="Panus lubatud";
  }else{
-   bet.innerText = "0";
-   betNote.innerText = "EI PANUSTA";
+   bet.innerText="0";
+   betNote.innerText="EI PANUSTA";
  }
 
- bank.innerText = state.bankroll.toFixed(2);
+ bank.innerText=state.bankroll.toFixed(2);
+
+ betsPlaced.innerText=state.betsPlaced;
+ wins.innerText=state.wins;
+ losses.innerText=state.losses;
+ winrate.innerText=state.betsPlaced
+  ?Math.round(state.wins/state.betsPlaced*100)+"%"
+  :"—";
+
  drawChart();
  renderTable();
 }
 
 function renderTable(){
- let h="";
- state.bets.forEach((b,i)=>{
-  h+=`<tr class="${i===state.miss?"active":""}">
-   <td>#${i+1}</td>
-   <td><input type="number" value="${b}"
-    onchange="state.bets[${i}]=+this.value;save()"></td>
-  </tr>`;
- });
- betTable.innerHTML=h;
+ betTable.innerHTML=state.bets.map((b,i)=>`
+ <tr class="${i===state.miss?"active":""}">
+  <td>#${i+1}</td>
+  <td><input type="number" value="${b}"
+   onchange="state.bets[${i}]=+this.value;save()"></td>
+ </tr>`).join("");
 }
 
 function drawChart(){
@@ -174,36 +186,35 @@ function drawChart(){
  ctx.clearRect(0,0,c.width,c.height);
  let max=Math.max(...state.bankHist),min=Math.min(...state.bankHist);
  let r=max-min||1;
+ ctx.beginPath();
  state.bankHist.forEach((v,i)=>{
   let x=i*(c.width/(state.bankHist.length-1||1));
   let y=c.height-(v-min)/r*c.height;
-  if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+  i?ctx.lineTo(x,y):ctx.moveTo(x,y);
  });
- ctx.strokeStyle="#22c55e";
- ctx.lineWidth=2;
- ctx.stroke();
+ ctx.strokeStyle="#22c55e";ctx.lineWidth=2;ctx.stroke();
 }
 
-function confText(t,c){conf.innerText=t;conf.className="small "+c;}
+function confText(t,c){conf.innerText=t;conf.className="small "+c}
 
 function resetAll(){
  state.history=[];
  state.transitions={};
  state.lastPrediction=null;
- state.correct=0;
- state.total=0;
- state.miss=0;
  state.bankroll=+startBank.value;
  state.bankHist=[state.bankroll];
- save(); updateUI();
+ state.miss=0;
+ state.betsPlaced=0;
+ state.wins=0;
+ state.losses=0;
+ save();updateUI();
 }
 
 function save(){
- localStorage.setItem("mk_fix",JSON.stringify(state));
+ localStorage.setItem("mk_counter",JSON.stringify(state));
 }
 
 updateUI();
 </script>
-
 </body>
 </html>
