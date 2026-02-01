@@ -1,20 +1,15 @@
-const CACHE = "markov-pwa-v1";
-const ASSETS = [
-  "./",
-  "./makrov_pro.html",
-  "./manifest.json",
-  "./icon-192.png",
-  "./icon-512.png"
-];
+const CACHE = "markov-offline-v1";
 
 self.addEventListener("install", e => {
-  e.waitUntil(
-    caches.open(CACHE).then(c => c.addAll(ASSETS))
-  );
+ e.waitUntil(
+  caches.open(CACHE).then(c =>
+   c.addAll(["./","index.html"])
+  )
+ );
 });
 
 self.addEventListener("fetch", e => {
-  e.respondWith(
-    caches.match(e.request).then(r => r || fetch(e.request))
-  );
+ e.respondWith(
+  caches.match(e.request).then(r => r || fetch(e.request))
+ );
 });
