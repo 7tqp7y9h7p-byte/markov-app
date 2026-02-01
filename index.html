@@ -4,17 +4,20 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Markov Ennustaja</title>
+
 <style>
 body{font-family:-apple-system;background:#020617;color:white;padding:16px}
 button{width:22%;padding:16px;font-size:22px;margin:1%;border-radius:12px;border:none;background:#2563eb;color:white}
 .reset{background:#dc2626;width:100%;margin-top:10px}
 .card{background:#0f172a;padding:16px;border-radius:14px;margin-top:14px}
-.big{font-size:38px;font-weight:bold;text-align:center}
+.big{font-size:36px;font-weight:bold;text-align:center}
 .small{opacity:.7;font-size:13px;text-align:center}
-.green{color:#22c55e}.red{color:#ef4444}.yellow{color:#eab308}
+.green{color:#22c55e}
+.red{color:#ef4444}
+.yellow{color:#eab308}
 input,select{width:100%;margin-top:4px}
-table{width:100%;font-size:12px;border-collapse:collapse}
-td,th{padding:4px;border-bottom:1px solid #1e293b;text-align:center}
+table{width:100%;font-size:12px}
+td{padding:4px}
 .active{background:#1d4ed8}
 </style>
 </head>
@@ -30,7 +33,7 @@ td,th{padding:4px;border-bottom:1px solid #1e293b;text-align:center}
 <button onclick="inputNum(3)">3</button>
 </div>
 
-<button class="reset" onclick="resetAll()">🔄 RESET</button>
+<button class="reset" onclick="resetSession()">🔄 RESET (session)</button>
 
 <div class="card">
 <div class="small">🔮 JÄRGMINE ENNUSTUS</div>
@@ -51,6 +54,7 @@ td,th{padding:4px;border-bottom:1px solid #1e293b;text-align:center}
 
 <div class="card">
 <b>⚙️ Seaded</b>
+
 <label>Algne bankroll</label>
 <input id="startBank" type="number" value="1000">
 
@@ -59,10 +63,9 @@ td,th{padding:4px;border-bottom:1px solid #1e293b;text-align:center}
 
 <label>Panustamise režiim</label>
 <select id="betMode">
- <option value="off">OFF</option>
- <option value="flat">FLAT</option>
- <option value="martingale">MARTINGALE</option>
  <option value="manual">MANUAL</option>
+ <option value="martingale">MARTINGALE</option>
+ <option value="fibonacci">FIBONACCI</option>
 </select>
 
 <label>Markovi järk</label>
@@ -73,123 +76,118 @@ td,th{padding:4px;border-bottom:1px solid #1e293b;text-align:center}
 </div>
 
 <div class="card">
-<b>📋 Panustamistabel</b>
+<b>📋 Panustamistabel (püsiv)</b>
 <table id="betTable"></table>
 </div>
 
-<div class="card">
-<b>📜 Ajalugu</b>
-<table>
-<thead>
-<tr>
-<th>#</th><th>N</th><th>Pred</th><th>Bet</th><th>Res</th><th>Bank</th>
-</tr>
-</thead>
-<tbody id="log"></tbody>
-</table>
-</div>
-
 <script>
-let state=JSON.parse(localStorage.getItem("mk_full"))||{
+let fib=[1,1];
+for(let i=2;i<20;i++) fib[i]=fib[i-1]+fib[i-2];
+
+let state=JSON.parse(localStorage.getItem("mk_state"))||{
  history:[], transitions:{},
  lastPrediction:null,
  bankroll:1000,
  miss:0,
- bets:Array.from({length:20},(_,i)=>Math.pow(2,i)),
- log:[]
+ bets:Array.from({length:20},(_,i)=>Math.pow(2,i))
 };
 
-function key(){
+function markovKey(){
  let k=+markovOrder.value;
  return state.history.slice(-k).join(",");
 }
 
 function confidence(){
- let r=state.transitions[key()];
- if(!r)return null;
- let s=Object.values(r).reduce((a,b)=>a+b,0);
- let m=Math.max(...Object.values(r));
- return Math.round(m/s*100);
+ let r=state.transitions[markovKey()];
+ if(!r) return null;
+ let sum=Object.values(r).reduce((a,b)=>a+b,0);
+ let max=Math.max(...Object.values(r));
+ return Math.round(max/sum*100);
 }
 
 function predict(){
- let r=state.transitions[key()];
- if(!r)return null;
+ let r=state.transitions[markovKey()];
+ if(!r) return null;
  return +Object.keys(r).reduce((a,b)=>r[a]>r[b]?a:b);
 }
 
 function currentBet(){
- let mode=betMode.value;
- if(mode==="flat") return state.bets[0];
- if(mode==="martingale") return state.bets[Math.min(state.miss,19)];
- if(mode==="manual") return state.bets[Math.min(state.miss,19)];
+ let m=betMode.value;
+ if(m==="manual") return state.bets[Math.min(state.miss,19)];
+ if(m==="martingale") return state.bets[Math.min(state.miss,19)];
+ if(m==="fibonacci") return fib[Math.min(state.miss,19)];
  return 0;
 }
 
 function inputNum(n){
- let conf=confidence(),limit=+confLimit.value;
- let bet=currentBet(),result="—",placed=false;
+ let conf=confidence();
+ let limit=+confLimit.value;
+ let bet=currentBet();
 
- if(betMode.value!=="off" && state.lastPrediction!==null && conf!==null && conf>=limit){
-   placed=true;
+ if(state.lastPrediction!==null && conf!==null && conf>=limit){
    if(state.lastPrediction===n){
-     state.bankroll+=bet*2;
-     state.miss=0; result="WIN";
+     state.bankroll += bet*2;
+     state.miss=0;
    }else{
-     state.bankroll-=bet;
-     state.miss++; result="LOSS";
+     state.bankroll -= bet;
+     state.miss++;
    }
  }
 
  if(state.history.length>=+markovOrder.value){
-   let k=key();
-   state.transitions[k]??={};
+   let k=markovKey();
+   state.transitions[k] ??= {};
    state.transitions[k][n]=(state.transitions[k][n]||0)+1;
  }
 
  state.history.push(n);
- if(state.history.length>3)state.history.shift();
-
- state.log.unshift({
-  n, pred:state.lastPrediction,
-  bet:placed?bet:0, res:result,
-  bank:state.bankroll.toFixed(2)
- });
+ if(state.history.length>3) state.history.shift();
 
  state.lastPrediction=predict();
- save();updateUI();
+ save(); updateUI();
 }
 
 function updateUI(){
  let conf=confidence();
  pred.innerText=state.lastPrediction??"—";
- confText(conf?`Confidence ${conf}%`:"Confidence —",
-  conf>=60?"green":conf>=40?"yellow":"red");
+
+ if(conf===null) setConf("Confidence —","");
+ else setConf(`Confidence ${conf}%`,
+   conf>=60?"green":conf>=40?"yellow":"red");
 
  bet.innerText=currentBet();
- betNote.innerText=betMode.value==="off"?"EI PANUSTA":"";
-
  bank.innerText=state.bankroll.toFixed(2);
+
+ betNote.innerText="Režiim: "+betMode.value.toUpperCase();
 
  betTable.innerHTML=state.bets.map((b,i)=>`
  <tr class="${i===state.miss?"active":""}">
   <td>#${i+1}</td>
-  <td><input type="number" value="${b}"
-   onchange="state.bets[${i}]=+this.value;save()"></td>
- </tr>`).join("");
-
- log.innerHTML=state.log.slice(0,30).map((l,i)=>`
- <tr>
-  <td>${i+1}</td><td>${l.n}</td><td>${l.pred??"—"}</td>
-  <td>${l.bet}</td>
-  <td class="${l.res==="WIN"?"green":l.res==="LOSS"?"red":""}">${l.res}</td>
-  <td>${l.bank}</td>
+  <td>
+   <input type="number" value="${b}"
+    onchange="state.bets[${i}]=+this.value;save()">
+  </td>
  </tr>`).join("");
 }
 
-function confText(t,c){conf.innerText=t;conf.className="small "+c}
-function save(){localStorage.setItem("mk_full",JSON.stringify(state))}
-function resetAll(){localStorage.removeItem("mk_full");location.reload()}
+function setConf(t,c){
+ conf.innerText=t;
+ conf.className="small "+c;
+}
+
+function resetSession(){
+ state.history=[];
+ state.transitions={};
+ state.lastPrediction=null;
+ state.bankroll=+startBank.value;
+ state.miss=0;
+ save(); updateUI();
+}
+
+function save(){
+ localStorage.setItem("mk_state",JSON.stringify(state));
+}
+
 updateUI();
 </script>
 </body>
