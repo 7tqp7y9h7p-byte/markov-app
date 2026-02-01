@@ -53,13 +53,16 @@ td{padding:4px}
 </div>
 
 <div class="card">
+<div class="small">📈 LOENDURID</div>
+<div>Vajutusi: <b id="clicks">0</b></div>
+<div>Panuseid: <b id="betsCount">0</b></div>
+</div>
+
+<div class="card">
 <b>⚙️ Seaded</b>
 
 <label>Algne bankroll</label>
 <input id="startBank" type="number" value="1000">
-
-<label>Min confidence %</label>
-<input id="confLimit" type="number" value="50">
 
 <label>Panustamise režiim</label>
 <select id="betMode">
@@ -85,10 +88,13 @@ let fib=[1,1];
 for(let i=2;i<20;i++) fib[i]=fib[i-1]+fib[i-2];
 
 let state=JSON.parse(localStorage.getItem("mk_state"))||{
- history:[], transitions:{},
+ history:[],
+ transitions:{},
  lastPrediction:null,
  bankroll:1000,
  miss:0,
+ clicks:0,
+ betsPlaced:0,
  bets:Array.from({length:20},(_,i)=>Math.pow(2,i))
 };
 
@@ -113,18 +119,17 @@ function predict(){
 
 function currentBet(){
  let m=betMode.value;
- if(m==="manual") return state.bets[Math.min(state.miss,19)];
- if(m==="martingale") return state.bets[Math.min(state.miss,19)];
  if(m==="fibonacci") return fib[Math.min(state.miss,19)];
- return 0;
+ return state.bets[Math.min(state.miss,19)];
 }
 
 function inputNum(n){
- let conf=confidence();
- let limit=+confLimit.value;
+ state.clicks++;
+
  let bet=currentBet();
 
- if(state.lastPrediction!==null && conf!==null && conf>=limit){
+ if(state.lastPrediction!==null){
+   state.betsPlaced++;
    if(state.lastPrediction===n){
      state.bankroll += bet*2;
      state.miss=0;
@@ -144,7 +149,14 @@ function inputNum(n){
  if(state.history.length>3) state.history.shift();
 
  state.lastPrediction=predict();
+ vibrate(confidence());
  save(); updateUI();
+}
+
+function vibrate(conf){
+ if(!navigator.vibrate) return;
+ if(conf>=60) navigator.vibrate([60,40,60]);
+ else navigator.vibrate(30);
 }
 
 function updateUI(){
@@ -157,7 +169,8 @@ function updateUI(){
 
  bet.innerText=currentBet();
  bank.innerText=state.bankroll.toFixed(2);
-
+ clicks.innerText=state.clicks;
+ betsCount.innerText=state.betsPlaced;
  betNote.innerText="Režiim: "+betMode.value.toUpperCase();
 
  betTable.innerHTML=state.bets.map((b,i)=>`
@@ -181,11 +194,17 @@ function resetSession(){
  state.lastPrediction=null;
  state.bankroll=+startBank.value;
  state.miss=0;
+ state.clicks=0;
+ state.betsPlaced=0;
  save(); updateUI();
 }
 
 function save(){
  localStorage.setItem("mk_state",JSON.stringify(state));
+}
+
+if('serviceWorker' in navigator){
+ navigator.serviceWorker.register('sw.js');
 }
 
 updateUI();
