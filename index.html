@@ -45,9 +45,9 @@ select,input{width:100%;padding:8px;margin-top:6px;border-radius:8px}
  <div class="small">💰 JÄRGMINE PANUS</div>
  <div class="big" id="bet">—</div>
 
- <select id="betMode" onchange="save()">
-  <option value="auto">Auto (järjestikune)</option>
+ <select id="betMode" onchange="changeMode()">
   <option value="manual">Manuaalne (20 astet)</option>
+  <option value="auto">Auto (järjestikune)</option>
  </select>
 </div>
 
@@ -62,8 +62,8 @@ select,input{width:100%;padding:8px;margin-top:6px;border-radius:8px}
 </div>
 
 <div class="card">
- <div>Vajutusi: <b id="clicks">0</b></div>
- <div>Panuseid: <b id="bets">0</b></div>
+ Vajutusi: <b id="clicks">0</b><br>
+ Panuseid: <b id="bets">0</b>
 </div>
 
 <div class="card">
@@ -77,8 +77,10 @@ function $(i){return document.getElementById(i)}
 var state=JSON.parse(localStorage.getItem("mk_state"))||{
  history:[],transitions:{},lastPrediction:null,
  bankroll:1000,miss:0,clicks:0,bets:0,
- betHistory:[],betMode:"auto",
- manualBets:Array(20).fill(1),manualIndex:0
+ betHistory:[],
+ betMode:"manual",
+ manualBets:Array(20).fill(1),
+ manualIndex:0
 }
 
 var autoBets=[1,2,4,8,16,32,64,128,256,512]
@@ -105,9 +107,9 @@ function confidence(){
 }
 
 function currentBet(){
- if(state.betMode==="manual")
-  return state.manualBets[state.manualIndex]||0
- return autoBets[Math.min(state.miss,autoBets.length-1)]
+ return state.betMode==="manual"
+  ? (state.manualBets[state.manualIndex]||0)
+  : autoBets[Math.min(state.miss,autoBets.length-1)]
 }
 
 function inputNum(n){
@@ -121,7 +123,7 @@ function inputNum(n){
   if(win){
    state.bankroll+=bet*2
    state.miss=0
-   if(state.betMode==="manual")state.manualIndex=0
+   state.manualIndex=0
   }else{
    state.bankroll-=bet
    if(state.betMode==="auto")state.miss++
@@ -166,21 +168,27 @@ function updateUI(){
 }
 
 function buildManual(){
- var g=$("manualGrid");g.innerHTML=""
+ var g=$("manualGrid"); g.innerHTML=""
  for(let i=0;i<20;i++){
   let inp=document.createElement("input")
-  inp.type="number";inp.min=1
+  inp.type="number"; inp.min=1
   inp.value=state.manualBets[i]
-  inp.oninput=()=>{state.manualBets[i]=+inp.value||0;save()}
+  inp.oninput=()=>{state.manualBets[i]=+inp.value||0; save()}
   g.appendChild(inp)
  }
+}
+
+function changeMode(){
+ state.betMode=$("betMode").value
+ state.manualIndex=0
+ save(); updateUI()
 }
 
 function resetSession(){
  state.history=[];state.transitions={};state.lastPrediction=null
  state.miss=0;state.clicks=0;state.bets=0
  state.betHistory=[];state.manualIndex=0
- save();updateUI()
+ save(); updateUI()
 }
 
 function save(){
@@ -188,7 +196,8 @@ function save(){
 }
 
 document.addEventListener("DOMContentLoaded",()=>{
- buildManual();updateUI()
+ buildManual()
+ updateUI()
 })
 </script>
 
