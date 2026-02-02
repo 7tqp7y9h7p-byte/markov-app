@@ -44,7 +44,6 @@ td,th{padding:4px;text-align:center}
 <div class="card">
  <div class="small">💰 JÄRGMINE PANUS</div>
  <div class="big" id="bet">—</div>
- <div class="small" id="betNote"></div>
 </div>
 
 <div class="card">
@@ -60,7 +59,6 @@ td,th{padding:4px;text-align:center}
 
 <div class="card">
 <b>⚙️ Seaded</b>
-
 <label>Algne bankroll</label>
 <input id="startBank" type="number" value="1000">
 
@@ -79,20 +77,15 @@ td,th{padding:4px;text-align:center}
 </div>
 
 <div class="card">
-<b>📋 Panustamistabel</b>
-<table id="betTable"></table>
-</div>
-
-<div class="card">
 <b>📜 Panuste ajalugu</b>
 <table id="historyTable"></table>
 </div>
 
 <script>
-let fib=[1,1];
-for(let i=2;i<20;i++) fib[i]=fib[i-1]+fib[i-2];
+var fib=[1,1];
+for(var i=2;i<20;i++) fib[i]=fib[i-1]+fib[i-2];
 
-let state=JSON.parse(localStorage.getItem("mk_state"))||{
+var state=JSON.parse(localStorage.getItem("mk_state")) || {
  history:[],
  transitions:{},
  lastPrediction:null,
@@ -100,37 +93,36 @@ let state=JSON.parse(localStorage.getItem("mk_state"))||{
  miss:0,
  clicks:0,
  betsPlaced:0,
- bets:Array.from({length:20},(_,i)=>Math.pow(2,i)),
+ bets:[1,2,4,8,16,32,64,128,256,512,1024,2048,4096,8192,16384,32768,65536,131072,262144,524288],
  betHistory:[]
 };
 
 function markovKey(){
- let k=+markovOrder.value;
+ var k=parseInt(markovOrder.value);
  return state.history.slice(-k).join(",");
 }
 
-/* ❗ TURVALINE */
 function getConfidence(){
- let r = state.transitions[markovKey()];
+ var r=state.transitions[markovKey()];
  if(!r) return null;
-
- let vals = Object.values(r);
+ var vals=Object.values(r);
  if(vals.length===0) return null;
-
- let sum = vals.reduce((a,b)=>a+b,0);
- let max = Math.max(...vals);
+ var sum=0;
+ for(var i=0;i<vals.length;i++) sum+=vals[i];
+ var max=Math.max.apply(null,vals);
  return Math.round(max/sum*100);
 }
 
-/* ❗ TURVALINE */
 function predict(){
- let r = state.transitions[markovKey()];
+ var r=state.transitions[markovKey()];
  if(!r) return null;
-
- let keys = Object.keys(r);
+ var keys=Object.keys(r);
  if(keys.length===0) return null;
-
- return +keys.reduce((a,b)=>r[a]>r[b]?a:b);
+ var best=keys[0];
+ for(var i=1;i<keys.length;i++){
+  if(r[keys[i]]>r[best]) best=keys[i];
+ }
+ return parseInt(best);
 }
 
 function currentBet(){
@@ -141,17 +133,17 @@ function currentBet(){
 
 function inputNum(n){
  state.clicks++;
- let bet=currentBet();
+ var bet=currentBet();
 
  if(state.lastPrediction!==null){
   state.betsPlaced++;
-  let win = state.lastPrediction===n;
+  var win=(state.lastPrediction===n);
 
   if(win){
-   state.bankroll += bet*2;
+   state.bankroll+=bet*2;
    state.miss=0;
   }else{
-   state.bankroll -= bet;
+   state.bankroll-=bet;
    state.miss++;
   }
 
@@ -167,23 +159,23 @@ function inputNum(n){
    state.betHistory.pop();
  }
 
- if(state.history.length>=+markovOrder.value){
-  let k=markovKey();
-  state.transitions[k] ??= {};
+ if(state.history.length>=parseInt(markovOrder.value)){
+  var k=markovKey();
+  if(!state.transitions[k]) state.transitions[k]={};
   state.transitions[k][n]=(state.transitions[k][n]||0)+1;
  }
 
  state.history.push(n);
- if(state.history.length>3)
-  state.history.shift();
+ if(state.history.length>3) state.history.shift();
 
  state.lastPrediction=predict();
- save(); updateUI();
+ save();
+ updateUI();
 }
 
 function updateUI(){
- let c=getConfidence();
- pred.innerText=state.lastPrediction??"—";
+ var c=getConfidence();
+ pred.innerText=(state.lastPrediction!==null?state.lastPrediction:"—");
 
  if(c===null){
   confEl.innerText="Confidence —";
@@ -197,44 +189,33 @@ function updateUI(){
  bank.innerText=state.bankroll.toFixed(2);
  clicks.innerText=state.clicks;
  betsCount.innerText=state.betsPlaced;
- betNote.innerText="Režiim: "+betMode.value.toUpperCase();
-
- betTable.innerHTML=state.bets.map((b,i)=>`
- <tr class="${i===state.miss?"active":""}">
-  <td>#${i+1}</td>
-  <td><input type="number" value="${b}"
-   onchange="state.bets[${i}]=+this.value;save()"></td>
- </tr>`).join("");
 
  historyTable.innerHTML=
- `<tr><th>#</th><th>Enn</th><th>Tulemus</th><th>Panus</th><th>BR</th></tr>`+
- state.betHistory.map((h,i)=>`
- <tr class="${h.result==='WIN'?'green':'red'}">
-  <td>${state.betHistory.length-i}</td>
-  <td>${h.prediction} → ${h.input}</td>
-  <td>${h.result}</td>
-  <td>${h.bet}</td>
-  <td>${h.bankroll.toFixed(2)}</td>
- </tr>`).join("");
+ "<tr><th>#</th><th>Enn</th><th>Tulemus</th><th>Panus</th><th>BR</th></tr>"+
+ state.betHistory.map(function(h,i){
+  return "<tr class='"+(h.result==="WIN"?"green":"red")+"'>"+
+   "<td>"+(state.betHistory.length-i)+"</td>"+
+   "<td>"+h.prediction+" → "+h.input+"</td>"+
+   "<td>"+h.result+"</td>"+
+   "<td>"+h.bet+"</td>"+
+   "<td>"+h.bankroll.toFixed(2)+"</td></tr>";
+ }).join("");
 }
 
 function resetSession(){
  state.history=[];
  state.transitions={};
  state.lastPrediction=null;
- state.bankroll=+startBank.value;
+ state.bankroll=parseFloat(startBank.value);
  state.miss=0;
  state.clicks=0;
  state.betsPlaced=0;
- save(); updateUI();
+ save();
+ updateUI();
 }
 
 function save(){
  localStorage.setItem("mk_state",JSON.stringify(state));
-}
-
-if('serviceWorker' in navigator){
- navigator.serviceWorker.register('sw.js');
 }
 
 updateUI();
