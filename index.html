@@ -36,30 +36,31 @@ td,th{padding:4px;text-align:center}
 <button class="reset" onclick="resetSession()">🔄 RESET (session)</button>
 
 <div class="card">
-<div class="small">🔮 JÄRGMINE ENNUSTUS</div>
-<div class="big" id="pred">—</div>
-<div id="confEl" class="small">Confidence —</div>
+ <div class="small">🔮 JÄRGMINE ENNUSTUS</div>
+ <div class="big" id="pred">—</div>
+ <div id="confEl" class="small">Confidence —</div>
 </div>
 
 <div class="card">
-<div class="small">💰 JÄRGMINE PANUS</div>
-<div class="big" id="bet">—</div>
-<div class="small" id="betNote"></div>
+ <div class="small">💰 JÄRGMINE PANUS</div>
+ <div class="big" id="bet">—</div>
+ <div class="small" id="betNote"></div>
 </div>
 
 <div class="card">
-<div class="small">🏦 BANKROLL</div>
-<div class="big" id="bank">—</div>
+ <div class="small">🏦 BANKROLL</div>
+ <div class="big" id="bank">—</div>
 </div>
 
 <div class="card">
-<div class="small">📈 LOENDURID</div>
-<div>Vajutusi: <b id="clicks">0</b></div>
-<div>Panuseid: <b id="betsCount">0</b></div>
+ <div class="small">📈 LOENDURID</div>
+ <div>Vajutusi: <b id="clicks">0</b></div>
+ <div>Panuseid: <b id="betsCount">0</b></div>
 </div>
 
 <div class="card">
 <b>⚙️ Seaded</b>
+
 <label>Algne bankroll</label>
 <input id="startBank" type="number" value="1000">
 
@@ -108,22 +109,33 @@ function markovKey(){
  return state.history.slice(-k).join(",");
 }
 
+/* ❗ TURVALINE */
 function getConfidence(){
- let r=state.transitions[markovKey()];
+ let r = state.transitions[markovKey()];
  if(!r) return null;
- let sum=Object.values(r).reduce((a,b)=>a+b,0);
- let max=Math.max(...Object.values(r));
+
+ let vals = Object.values(r);
+ if(vals.length===0) return null;
+
+ let sum = vals.reduce((a,b)=>a+b,0);
+ let max = Math.max(...vals);
  return Math.round(max/sum*100);
 }
 
+/* ❗ TURVALINE */
 function predict(){
- let r=state.transitions[markovKey()];
+ let r = state.transitions[markovKey()];
  if(!r) return null;
- return +Object.keys(r).reduce((a,b)=>r[a]>r[b]?a:b);
+
+ let keys = Object.keys(r);
+ if(keys.length===0) return null;
+
+ return +keys.reduce((a,b)=>r[a]>r[b]?a:b);
 }
 
 function currentBet(){
- if(betMode.value==="fibonacci") return fib[Math.min(state.miss,19)];
+ if(betMode.value==="fibonacci")
+  return fib[Math.min(state.miss,19)];
  return state.bets[Math.min(state.miss,19)];
 }
 
@@ -138,7 +150,7 @@ function inputNum(n){
   if(win){
    state.bankroll += bet*2;
    state.miss=0;
-  } else {
+  }else{
    state.bankroll -= bet;
    state.miss++;
   }
@@ -151,17 +163,19 @@ function inputNum(n){
    bankroll:state.bankroll
   });
 
-  if(state.betHistory.length>50) state.betHistory.pop();
+  if(state.betHistory.length>50)
+   state.betHistory.pop();
  }
 
  if(state.history.length>=+markovOrder.value){
   let k=markovKey();
-  state.transitions[k]??={};
+  state.transitions[k] ??= {};
   state.transitions[k][n]=(state.transitions[k][n]||0)+1;
  }
 
  state.history.push(n);
- if(state.history.length>3) state.history.shift();
+ if(state.history.length>3)
+  state.history.shift();
 
  state.lastPrediction=predict();
  save(); updateUI();
@@ -174,7 +188,7 @@ function updateUI(){
  if(c===null){
   confEl.innerText="Confidence —";
   confEl.className="small";
- } else {
+ }else{
   confEl.innerText="Confidence "+c+"%";
   confEl.className="small "+(c>=60?"green":c>=40?"yellow":"red");
  }
@@ -192,4 +206,38 @@ function updateUI(){
    onchange="state.bets[${i}]=+this.value;save()"></td>
  </tr>`).join("");
 
- historyTable.inner
+ historyTable.innerHTML=
+ `<tr><th>#</th><th>Enn</th><th>Tulemus</th><th>Panus</th><th>BR</th></tr>`+
+ state.betHistory.map((h,i)=>`
+ <tr class="${h.result==='WIN'?'green':'red'}">
+  <td>${state.betHistory.length-i}</td>
+  <td>${h.prediction} → ${h.input}</td>
+  <td>${h.result}</td>
+  <td>${h.bet}</td>
+  <td>${h.bankroll.toFixed(2)}</td>
+ </tr>`).join("");
+}
+
+function resetSession(){
+ state.history=[];
+ state.transitions={};
+ state.lastPrediction=null;
+ state.bankroll=+startBank.value;
+ state.miss=0;
+ state.clicks=0;
+ state.betsPlaced=0;
+ save(); updateUI();
+}
+
+function save(){
+ localStorage.setItem("mk_state",JSON.stringify(state));
+}
+
+if('serviceWorker' in navigator){
+ navigator.serviceWorker.register('sw.js');
+}
+
+updateUI();
+</script>
+</body>
+</html>
