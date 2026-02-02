@@ -14,7 +14,6 @@ button{width:22%;padding:16px;font-size:22px;margin:1%;border-radius:12px;border
 .small{opacity:.7;font-size:13px;text-align:center}
 .green{color:#22c55e}
 .red{color:#ef4444}
-.yellow{color:#eab308}
 table{width:100%;font-size:12px}
 td,th{padding:4px;text-align:center}
 input{width:100%;padding:8px;border-radius:8px}
@@ -49,7 +48,29 @@ input{width:100%;padding:8px;border-radius:8px}
 
 <div class="card">
  <div class="small">✍️ MANUAALSED PANUSED (20 ASTET)</div>
- <div class="grid" id="manualGrid"></div>
+ <div class="grid" id="manualGrid">
+  <!-- 20 INPUTIT OTSE HTML-IS -->
+  <input type="number" min="1">
+  <input type="number" min="1">
+  <input type="number" min="1">
+  <input type="number" min="1">
+  <input type="number" min="1">
+  <input type="number" min="1">
+  <input type="number" min="1">
+  <input type="number" min="1">
+  <input type="number" min="1">
+  <input type="number" min="1">
+  <input type="number" min="1">
+  <input type="number" min="1">
+  <input type="number" min="1">
+  <input type="number" min="1">
+  <input type="number" min="1">
+  <input type="number" min="1">
+  <input type="number" min="1">
+  <input type="number" min="1">
+  <input type="number" min="1">
+  <input type="number" min="1">
+ </div>
 </div>
 
 <div class="card">
@@ -72,16 +93,17 @@ input{width:100%;padding:8px;border-radius:8px}
 function $(i){return document.getElementById(i)}
 
 var state=JSON.parse(localStorage.getItem("mk_state"))||{
- history:[],
- transitions:{},
- lastPrediction:null,
- bankroll:1000,
- clicks:0,
- bets:0,
+ history:[],transitions:{},lastPrediction:null,
+ bankroll:1000,clicks:0,bets:0,
  manualBets:Array(20).fill(1),
- manualIndex:0,
- betHistory:[]
+ manualIndex:0,betHistory:[]
 }
+
+const inputs=[...$("manualGrid").children]
+inputs.forEach((inp,i)=>{
+ inp.value=state.manualBets[i]
+ inp.oninput=()=>{state.manualBets[i]=+inp.value||0;save()}
+})
 
 function markovKey(){
  if(state.history.length<2)return null
@@ -92,7 +114,7 @@ function predict(){
  var k=markovKey()
  if(!k||!state.transitions[k])return null
  var r=state.transitions[k],b=null,m=-1
- for(var n in r) if(r[n]>m){m=r[n];b=n}
+ for(var n in r)if(r[n]>m){m=r[n];b=n}
  return b!==null?+b:null
 }
 
@@ -115,18 +137,9 @@ function inputNum(n){
  if(state.lastPrediction!==null){
   state.bets++
   var win=state.lastPrediction===n
-
-  if(win){
-   state.bankroll+=bet*2
-   state.manualIndex=0
-  }else{
-   state.bankroll-=bet
-   if(state.manualIndex<19) state.manualIndex++
-  }
-
-  state.betHistory.unshift({
-   p:state.lastPrediction,r:n,b:bet,w:win,br:state.bankroll
-  })
+  if(win){state.bankroll+=bet*2;state.manualIndex=0}
+  else{state.bankroll-=bet;if(state.manualIndex<19)state.manualIndex++}
+  state.betHistory.unshift({p:state.lastPrediction,r:n,b:bet,w:win,br:state.bankroll})
   if(state.betHistory.length>50)state.betHistory.pop()
  }
 
@@ -138,9 +151,8 @@ function inputNum(n){
 
  state.history.push(n)
  if(state.history.length>3)state.history.shift()
-
  state.lastPrediction=predict()
- save(); updateUI()
+ save();updateUI()
 }
 
 function updateUI(){
@@ -152,6 +164,7 @@ function updateUI(){
  $("clicks").innerText=state.clicks
  $("bets").innerText=state.bets
  $("step").innerText=state.manualIndex+1
+ inputs.forEach((i,idx)=>i.classList.toggle("active",idx===state.manualIndex))
 
  var h="<tr><th>#</th><th>Enn</th><th>Tulemus</th><th>Panus</th><th>BR</th></tr>"
  state.betHistory.forEach((x,i)=>{
@@ -160,46 +173,19 @@ function updateUI(){
   "</td><td>"+x.b+"</td><td>"+x.br.toFixed(2)+"</td></tr>"
  })
  $("history").innerHTML=h
-
- highlightActive()
-}
-
-function buildManual(){
- var g=$("manualGrid"); g.innerHTML=""
- for(let i=0;i<20;i++){
-  let inp=document.createElement("input")
-  inp.type="number"; inp.min=1
-  inp.value=state.manualBets[i]
-  inp.oninput=()=>{state.manualBets[i]=+inp.value||0; save()}
-  g.appendChild(inp)
- }
-}
-
-function highlightActive(){
- var inputs=$("manualGrid").children
- for(let i=0;i<inputs.length;i++)
-  inputs[i].classList.toggle("active",i===state.manualIndex)
 }
 
 function resetSession(){
- state.history=[]
- state.transitions={}
- state.lastPrediction=null
- state.clicks=0
- state.bets=0
- state.manualIndex=0
- state.betHistory=[]
- save(); updateUI()
+ state.history=[];state.transitions={};state.lastPrediction=null
+ state.clicks=0;state.bets=0;state.manualIndex=0;state.betHistory=[]
+ save();updateUI()
 }
 
 function save(){
  localStorage.setItem("mk_state",JSON.stringify(state))
 }
 
-document.addEventListener("DOMContentLoaded",()=>{
- buildManual()
- updateUI()
-})
+updateUI()
 </script>
 
 </body>
