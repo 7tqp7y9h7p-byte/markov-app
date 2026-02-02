@@ -17,8 +17,9 @@ button{width:22%;padding:16px;font-size:22px;margin:1%;border-radius:12px;border
 .yellow{color:#eab308}
 table{width:100%;font-size:12px}
 td,th{padding:4px;text-align:center}
-select,input{width:100%;padding:8px;margin-top:6px;border-radius:8px}
+input{width:100%;padding:8px;border-radius:8px}
 .grid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.active{outline:2px solid #22c55e}
 </style>
 </head>
 
@@ -44,15 +45,10 @@ select,input{width:100%;padding:8px;margin-top:6px;border-radius:8px}
 <div class="card">
  <div class="small">💰 JÄRGMINE PANUS</div>
  <div class="big" id="bet">—</div>
-
- <select id="betMode" onchange="changeMode()">
-  <option value="manual">Manuaalne (20 astet)</option>
-  <option value="auto">Auto (järjestikune)</option>
- </select>
 </div>
 
-<div class="card" id="manualBox">
- <div class="small">✍️ Manuaalsed panused (1–20)</div>
+<div class="card">
+ <div class="small">✍️ MANUAALSED PANUSED (20 ASTET)</div>
  <div class="grid" id="manualGrid"></div>
 </div>
 
@@ -63,7 +59,8 @@ select,input{width:100%;padding:8px;margin-top:6px;border-radius:8px}
 
 <div class="card">
  Vajutusi: <b id="clicks">0</b><br>
- Panuseid: <b id="bets">0</b>
+ Panuseid: <b id="bets">0</b><br>
+ Aktiivne aste: <b id="step">1</b>
 </div>
 
 <div class="card">
@@ -75,15 +72,16 @@ select,input{width:100%;padding:8px;margin-top:6px;border-radius:8px}
 function $(i){return document.getElementById(i)}
 
 var state=JSON.parse(localStorage.getItem("mk_state"))||{
- history:[],transitions:{},lastPrediction:null,
- bankroll:1000,miss:0,clicks:0,bets:0,
- betHistory:[],
- betMode:"manual",
+ history:[],
+ transitions:{},
+ lastPrediction:null,
+ bankroll:1000,
+ clicks:0,
+ bets:0,
  manualBets:Array(20).fill(1),
- manualIndex:0
+ manualIndex:0,
+ betHistory:[]
 }
-
-var autoBets=[1,2,4,8,16,32,64,128,256,512]
 
 function markovKey(){
  if(state.history.length<2)return null
@@ -94,7 +92,7 @@ function predict(){
  var k=markovKey()
  if(!k||!state.transitions[k])return null
  var r=state.transitions[k],b=null,m=-1
- for(var n in r)if(r[n]>m){m=r[n];b=n}
+ for(var n in r) if(r[n]>m){m=r[n];b=n}
  return b!==null?+b:null
 }
 
@@ -107,9 +105,7 @@ function confidence(){
 }
 
 function currentBet(){
- return state.betMode==="manual"
-  ? (state.manualBets[state.manualIndex]||0)
-  : autoBets[Math.min(state.miss,autoBets.length-1)]
+ return state.manualBets[state.manualIndex]||0
 }
 
 function inputNum(n){
@@ -122,15 +118,15 @@ function inputNum(n){
 
   if(win){
    state.bankroll+=bet*2
-   state.miss=0
    state.manualIndex=0
   }else{
    state.bankroll-=bet
-   if(state.betMode==="auto")state.miss++
-   if(state.betMode==="manual" && state.manualIndex<19)state.manualIndex++
+   if(state.manualIndex<19) state.manualIndex++
   }
 
-  state.betHistory.unshift({p:state.lastPrediction,r:n,b:bet,w:win,br:state.bankroll})
+  state.betHistory.unshift({
+   p:state.lastPrediction,r:n,b:bet,w:win,br:state.bankroll
+  })
   if(state.betHistory.length>50)state.betHistory.pop()
  }
 
@@ -144,7 +140,7 @@ function inputNum(n){
  if(state.history.length>3)state.history.shift()
 
  state.lastPrediction=predict()
- save();updateUI()
+ save(); updateUI()
 }
 
 function updateUI(){
@@ -155,8 +151,7 @@ function updateUI(){
  $("bank").innerText=state.bankroll.toFixed(2)
  $("clicks").innerText=state.clicks
  $("bets").innerText=state.bets
- $("betMode").value=state.betMode
- $("manualBox").style.display=state.betMode==="manual"?"block":"none"
+ $("step").innerText=state.manualIndex+1
 
  var h="<tr><th>#</th><th>Enn</th><th>Tulemus</th><th>Panus</th><th>BR</th></tr>"
  state.betHistory.forEach((x,i)=>{
@@ -165,6 +160,8 @@ function updateUI(){
   "</td><td>"+x.b+"</td><td>"+x.br.toFixed(2)+"</td></tr>"
  })
  $("history").innerHTML=h
+
+ highlightActive()
 }
 
 function buildManual(){
@@ -178,16 +175,20 @@ function buildManual(){
  }
 }
 
-function changeMode(){
- state.betMode=$("betMode").value
- state.manualIndex=0
- save(); updateUI()
+function highlightActive(){
+ var inputs=$("manualGrid").children
+ for(let i=0;i<inputs.length;i++)
+  inputs[i].classList.toggle("active",i===state.manualIndex)
 }
 
 function resetSession(){
- state.history=[];state.transitions={};state.lastPrediction=null
- state.miss=0;state.clicks=0;state.bets=0
- state.betHistory=[];state.manualIndex=0
+ state.history=[]
+ state.transitions={}
+ state.lastPrediction=null
+ state.clicks=0
+ state.bets=0
+ state.manualIndex=0
+ state.betHistory=[]
  save(); updateUI()
 }
 
