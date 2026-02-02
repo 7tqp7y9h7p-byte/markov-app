@@ -17,7 +17,7 @@ button{width:22%;padding:16px;font-size:22px;margin:1%;border-radius:12px;border
 .yellow{color:#eab308}
 input,select{width:100%;margin-top:4px}
 table{width:100%;font-size:12px}
-td{padding:4px}
+td,th{padding:4px;text-align:center}
 .active{background:#1d4ed8}
 </style>
 </head>
@@ -79,8 +79,13 @@ td{padding:4px}
 </div>
 
 <div class="card">
-<b>📋 Panustamistabel (püsiv)</b>
+<b>📋 Panustamistabel</b>
 <table id="betTable"></table>
+</div>
+
+<div class="card">
+<b>📜 Panuste ajalugu</b>
+<table id="historyTable"></table>
 </div>
 
 <script>
@@ -95,7 +100,8 @@ let state=JSON.parse(localStorage.getItem("mk_state"))||{
  miss:0,
  clicks:0,
  betsPlaced:0,
- bets:Array.from({length:20},(_,i)=>Math.pow(2,i))
+ bets:Array.from({length:20},(_,i)=>Math.pow(2,i)),
+ betHistory:[]
 };
 
 function markovKey(){
@@ -118,55 +124,54 @@ function predict(){
 }
 
 function currentBet(){
- let m=betMode.value;
- if(m==="fibonacci") return fib[Math.min(state.miss,19)];
+ if(betMode.value==="fibonacci") return fib[Math.min(state.miss,19)];
  return state.bets[Math.min(state.miss,19)];
 }
 
 function inputNum(n){
  state.clicks++;
-
  let bet=currentBet();
 
  if(state.lastPrediction!==null){
-   state.betsPlaced++;
-   if(state.lastPrediction===n){
-     state.bankroll += bet*2;
-     state.miss=0;
-   }else{
-     state.bankroll -= bet;
-     state.miss++;
-   }
+  state.betsPlaced++;
+  let win = state.lastPrediction===n;
+
+  if(win){
+   state.bankroll += bet*2;
+   state.miss=0;
+  }else{
+   state.bankroll -= bet;
+   state.miss++;
+  }
+
+  state.betHistory.unshift({
+   prediction:state.lastPrediction,
+   input:n,
+   bet:bet,
+   result:win?"WIN":"LOSS",
+   bankroll:state.bankroll
+  });
+
+  if(state.betHistory.length>50) state.betHistory.pop();
  }
 
  if(state.history.length>=+markovOrder.value){
-   let k=markovKey();
-   state.transitions[k] ??= {};
-   state.transitions[k][n]=(state.transitions[k][n]||0)+1;
+  let k=markovKey();
+  state.transitions[k]??={};
+  state.transitions[k][n]=(state.transitions[k][n]||0)+1;
  }
 
  state.history.push(n);
  if(state.history.length>3) state.history.shift();
 
  state.lastPrediction=predict();
- vibrate(confidence());
  save(); updateUI();
-}
-
-function vibrate(conf){
- if(!navigator.vibrate) return;
- if(conf>=60) navigator.vibrate([60,40,60]);
- else navigator.vibrate(30);
 }
 
 function updateUI(){
  let conf=confidence();
  pred.innerText=state.lastPrediction??"—";
-
- if(conf===null) setConf("Confidence —","");
- else setConf(`Confidence ${conf}%`,
-   conf>=60?"green":conf>=40?"yellow":"red");
-
+ confText(conf);
  bet.innerText=currentBet();
  bank.innerText=state.bankroll.toFixed(2);
  clicks.innerText=state.clicks;
@@ -176,16 +181,26 @@ function updateUI(){
  betTable.innerHTML=state.bets.map((b,i)=>`
  <tr class="${i===state.miss?"active":""}">
   <td>#${i+1}</td>
-  <td>
-   <input type="number" value="${b}"
-    onchange="state.bets[${i}]=+this.value;save()">
-  </td>
+  <td><input type="number" value="${b}"
+   onchange="state.bets[${i}]=+this.value;save()"></td>
+ </tr>`).join("");
+
+ historyTable.innerHTML=`
+ <tr><th>#</th><th>Enn</th><th>Tulemus</th><th>Panus</th><th>BR</th></tr>`+
+ state.betHistory.map((h,i)=>`
+ <tr class="${h.result==='WIN'?'green':'red'}">
+  <td>${state.betHistory.length-i}</td>
+  <td>${h.prediction} → ${h.input}</td>
+  <td>${h.result}</td>
+  <td>${h.bet}</td>
+  <td>${h.bankroll.toFixed(2)}</td>
  </tr>`).join("");
 }
 
-function setConf(t,c){
- conf.innerText=t;
- conf.className="small "+c;
+function confText(c){
+ if(c===null){conf.innerText="Confidence —";conf.className="small";return;}
+ conf.innerText="Confidence "+c+"%";
+ conf.className="small "+(c>=60?"green":c>=40?"yellow":"red");
 }
 
 function resetSession(){
