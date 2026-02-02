@@ -6,55 +6,19 @@
 <title>Markov Ennustaja</title>
 
 <style>
-body{
- font-family:-apple-system,system-ui;
- background:#020617;
- color:white;
- padding:16px;
-}
-button{
- width:22%;
- padding:16px;
- font-size:22px;
- margin:1%;
- border-radius:12px;
- border:none;
- background:#2563eb;
- color:white;
-}
-.reset{
- background:#dc2626;
- width:100%;
- margin-top:10px;
-}
-.card{
- background:#0f172a;
- padding:16px;
- border-radius:14px;
- margin-top:14px;
-}
-.big{
- font-size:36px;
- font-weight:bold;
- text-align:center;
-}
-.small{
- opacity:.7;
- font-size:13px;
- text-align:center;
-}
+body{font-family:-apple-system;background:#020617;color:white;padding:16px}
+button{width:22%;padding:16px;font-size:22px;margin:1%;border-radius:12px;border:none;background:#2563eb;color:white}
+.reset{background:#dc2626;width:100%;margin-top:10px}
+.card{background:#0f172a;padding:16px;border-radius:14px;margin-top:14px}
+.big{font-size:36px;font-weight:bold;text-align:center}
+.small{opacity:.7;font-size:13px;text-align:center}
 .green{color:#22c55e}
 .red{color:#ef4444}
 .yellow{color:#eab308}
 table{width:100%;font-size:12px}
 td,th{padding:4px;text-align:center}
-select,input{
- width:100%;
- padding:10px;
- margin-top:6px;
- border-radius:10px;
- font-size:16px;
-}
+select,input{width:100%;padding:8px;margin-top:6px;border-radius:8px}
+.grid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
 </style>
 </head>
 
@@ -83,12 +47,13 @@ select,input{
 
  <select id="betMode" onchange="save()">
   <option value="auto">Auto (järjestikune)</option>
-  <option value="manual">Manuaalne</option>
+  <option value="manual">Manuaalne (20 astet)</option>
  </select>
+</div>
 
- <input id="manualBet" type="number" min="1" step="1"
-  placeholder="Sisesta manuaalne panus"
-  oninput="save()">
+<div class="card" id="manualBox">
+ <div class="small">✍️ Manuaalsed panused (1–20)</div>
+ <div class="grid" id="manualGrid"></div>
 </div>
 
 <div class="card">
@@ -107,130 +72,124 @@ select,input{
 </div>
 
 <script>
-function $(id){ return document.getElementById(id); }
+function $(i){return document.getElementById(i)}
 
-var state = JSON.parse(localStorage.getItem("mk_state")) || {
- history:[],
- transitions:{},
- lastPrediction:null,
- bankroll:1000,
- miss:0,
- clicks:0,
- bets:0,
- betHistory:[],
- betMode:"auto",
- manualBet:10
-};
+var state=JSON.parse(localStorage.getItem("mk_state"))||{
+ history:[],transitions:{},lastPrediction:null,
+ bankroll:1000,miss:0,clicks:0,bets:0,
+ betHistory:[],betMode:"auto",
+ manualBets:Array(20).fill(1),manualIndex:0
+}
 
-var betsTable=[1,2,4,8,16,32,64,128,256,512];
+var autoBets=[1,2,4,8,16,32,64,128,256,512]
 
 function markovKey(){
- if(state.history.length<2) return null;
- return state.history.slice(-2).join(",");
+ if(state.history.length<2)return null
+ return state.history.slice(-2).join(",")
 }
 
 function predict(){
- var k=markovKey();
- if(!k||!state.transitions[k]) return null;
- var r=state.transitions[k],best=null,max=-1;
- for(var n in r){
-  if(r[n]>max){max=r[n];best=n;}
- }
- return best!==null?parseInt(best):null;
+ var k=markovKey()
+ if(!k||!state.transitions[k])return null
+ var r=state.transitions[k],b=null,m=-1
+ for(var n in r)if(r[n]>m){m=r[n];b=n}
+ return b!==null?+b:null
 }
 
 function confidence(){
- var k=markovKey();
- if(!k||!state.transitions[k]) return null;
- var r=state.transitions[k],sum=0,max=0;
- for(var n in r){sum+=r[n];if(r[n]>max)max=r[n];}
- if(sum===0) return null;
- return Math.round(max/sum*100);
+ var k=markovKey()
+ if(!k||!state.transitions[k])return null
+ var r=state.transitions[k],s=0,m=0
+ for(var n in r){s+=r[n];if(r[n]>m)m=r[n]}
+ return s?Math.round(m/s*100):null
 }
 
 function currentBet(){
- if(state.betMode==="manual") return Number(state.manualBet)||0;
- return betsTable[Math.min(state.miss,betsTable.length-1)];
+ if(state.betMode==="manual")
+  return state.manualBets[state.manualIndex]||0
+ return autoBets[Math.min(state.miss,autoBets.length-1)]
 }
 
 function inputNum(n){
- state.clicks++;
- var bet=currentBet();
+ state.clicks++
+ var bet=currentBet()
 
  if(state.lastPrediction!==null){
-  state.bets++;
-  var win=(state.lastPrediction===n);
+  state.bets++
+  var win=state.lastPrediction===n
 
   if(win){
-   state.bankroll+=bet*2;
-   state.miss=0;
+   state.bankroll+=bet*2
+   state.miss=0
+   if(state.betMode==="manual")state.manualIndex=0
   }else{
-   state.bankroll-=bet;
-   if(state.betMode==="auto") state.miss++;
+   state.bankroll-=bet
+   if(state.betMode==="auto")state.miss++
+   if(state.betMode==="manual" && state.manualIndex<19)state.manualIndex++
   }
 
-  state.betHistory.unshift({
-   p:state.lastPrediction,r:n,b:bet,w:win,br:state.bankroll
-  });
-  if(state.betHistory.length>50) state.betHistory.pop();
+  state.betHistory.unshift({p:state.lastPrediction,r:n,b:bet,w:win,br:state.bankroll})
+  if(state.betHistory.length>50)state.betHistory.pop()
  }
 
  if(state.history.length>=2){
-  var k=markovKey();
-  if(!state.transitions[k]) state.transitions[k]={};
-  state.transitions[k][n]=(state.transitions[k][n]||0)+1;
+  var k=markovKey()
+  if(!state.transitions[k])state.transitions[k]={}
+  state.transitions[k][n]=(state.transitions[k][n]||0)+1
  }
 
- state.history.push(n);
- if(state.history.length>3) state.history.shift();
+ state.history.push(n)
+ if(state.history.length>3)state.history.shift()
 
- state.lastPrediction=predict();
- save(); updateUI();
+ state.lastPrediction=predict()
+ save();updateUI()
 }
 
 function updateUI(){
- $("pred").innerText=state.lastPrediction!==null?state.lastPrediction:"—";
+ $("pred").innerText=state.lastPrediction??"—"
+ var c=confidence()
+ $("conf").innerText=c?("Confidence "+c+"%"):"Confidence —"
+ $("bet").innerText=currentBet()
+ $("bank").innerText=state.bankroll.toFixed(2)
+ $("clicks").innerText=state.clicks
+ $("bets").innerText=state.bets
+ $("betMode").value=state.betMode
+ $("manualBox").style.display=state.betMode==="manual"?"block":"none"
 
- var c=confidence();
- $("conf").innerText=c?("Confidence "+c+"%"):"Confidence —";
- $("conf").className="small "+(c>=60?"green":c>=40?"yellow":"");
-
- $("bet").innerText=currentBet();
- $("bank").innerText=state.bankroll.toFixed(2);
- $("clicks").innerText=state.clicks;
- $("bets").innerText=state.bets;
-
- $("betMode").value=state.betMode;
- $("manualBet").value=state.manualBet;
-
- var h="<tr><th>#</th><th>Enn</th><th>Tulemus</th><th>Panus</th><th>BR</th></tr>";
- for(var i=0;i<state.betHistory.length;i++){
-  var x=state.betHistory[i];
+ var h="<tr><th>#</th><th>Enn</th><th>Tulemus</th><th>Panus</th><th>BR</th></tr>"
+ state.betHistory.forEach((x,i)=>{
   h+="<tr class='"+(x.w?"green":"red")+"'><td>"+(state.betHistory.length-i)+
   "</td><td>"+x.p+" → "+x.r+"</td><td>"+(x.w?"WIN":"LOSS")+
-  "</td><td>"+x.b+"</td><td>"+x.br.toFixed(2)+"</td></tr>";
+  "</td><td>"+x.b+"</td><td>"+x.br.toFixed(2)+"</td></tr>"
+ })
+ $("history").innerHTML=h
+}
+
+function buildManual(){
+ var g=$("manualGrid");g.innerHTML=""
+ for(let i=0;i<20;i++){
+  let inp=document.createElement("input")
+  inp.type="number";inp.min=1
+  inp.value=state.manualBets[i]
+  inp.oninput=()=>{state.manualBets[i]=+inp.value||0;save()}
+  g.appendChild(inp)
  }
- $("history").innerHTML=h;
 }
 
 function resetSession(){
- state.history=[];
- state.transitions={};
- state.lastPrediction=null;
- state.miss=0;
- state.clicks=0;
- state.bets=0;
- state.betHistory=[];
- save(); updateUI();
+ state.history=[];state.transitions={};state.lastPrediction=null
+ state.miss=0;state.clicks=0;state.bets=0
+ state.betHistory=[];state.manualIndex=0
+ save();updateUI()
 }
 
 function save(){
- state.betMode=$("betMode").value;
- state.manualBet=Number($("manualBet").value)||0;
- localStorage.setItem("mk_state",JSON.stringify(state));
+ localStorage.setItem("mk_state",JSON.stringify(state))
 }
 
-document.addEventListener("DOMContentLoaded",updateUI);
+document.addEventListener("DOMContentLoaded",()=>{
+ buildManual();updateUI()
+})
 </script>
 
 </body>
