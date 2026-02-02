@@ -38,7 +38,7 @@ td,th{padding:4px;text-align:center}
 <div class="card">
 <div class="small">🔮 JÄRGMINE ENNUSTUS</div>
 <div class="big" id="pred">—</div>
-<div id="conf" class="small">Confidence —</div>
+<div id="confEl" class="small">Confidence —</div>
 </div>
 
 <div class="card">
@@ -60,7 +60,6 @@ td,th{padding:4px;text-align:center}
 
 <div class="card">
 <b>⚙️ Seaded</b>
-
 <label>Algne bankroll</label>
 <input id="startBank" type="number" value="1000">
 
@@ -109,7 +108,7 @@ function markovKey(){
  return state.history.slice(-k).join(",");
 }
 
-function confidence(){
+function getConfidence(){
  let r=state.transitions[markovKey()];
  if(!r) return null;
  let sum=Object.values(r).reduce((a,b)=>a+b,0);
@@ -139,7 +138,7 @@ function inputNum(n){
   if(win){
    state.bankroll += bet*2;
    state.miss=0;
-  }else{
+  } else {
    state.bankroll -= bet;
    state.miss++;
   }
@@ -169,9 +168,17 @@ function inputNum(n){
 }
 
 function updateUI(){
- let conf=confidence();
+ let c=getConfidence();
  pred.innerText=state.lastPrediction??"—";
- confText(conf);
+
+ if(c===null){
+  confEl.innerText="Confidence —";
+  confEl.className="small";
+ } else {
+  confEl.innerText="Confidence "+c+"%";
+  confEl.className="small "+(c>=60?"green":c>=40?"yellow":"red");
+ }
+
  bet.innerText=currentBet();
  bank.innerText=state.bankroll.toFixed(2);
  clicks.innerText=state.clicks;
@@ -185,44 +192,4 @@ function updateUI(){
    onchange="state.bets[${i}]=+this.value;save()"></td>
  </tr>`).join("");
 
- historyTable.innerHTML=`
- <tr><th>#</th><th>Enn</th><th>Tulemus</th><th>Panus</th><th>BR</th></tr>`+
- state.betHistory.map((h,i)=>`
- <tr class="${h.result==='WIN'?'green':'red'}">
-  <td>${state.betHistory.length-i}</td>
-  <td>${h.prediction} → ${h.input}</td>
-  <td>${h.result}</td>
-  <td>${h.bet}</td>
-  <td>${h.bankroll.toFixed(2)}</td>
- </tr>`).join("");
-}
-
-function confText(c){
- if(c===null){conf.innerText="Confidence —";conf.className="small";return;}
- conf.innerText="Confidence "+c+"%";
- conf.className="small "+(c>=60?"green":c>=40?"yellow":"red");
-}
-
-function resetSession(){
- state.history=[];
- state.transitions={};
- state.lastPrediction=null;
- state.bankroll=+startBank.value;
- state.miss=0;
- state.clicks=0;
- state.betsPlaced=0;
- save(); updateUI();
-}
-
-function save(){
- localStorage.setItem("mk_state",JSON.stringify(state));
-}
-
-if('serviceWorker' in navigator){
- navigator.serviceWorker.register('sw.js');
-}
-
-updateUI();
-</script>
-</body>
-</html>
+ historyTable.inner
