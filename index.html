@@ -48,6 +48,13 @@ button{
 .yellow{color:#eab308}
 table{width:100%;font-size:12px}
 td,th{padding:4px;text-align:center}
+select,input{
+ width:100%;
+ padding:10px;
+ margin-top:6px;
+ border-radius:10px;
+ font-size:16px;
+}
 </style>
 </head>
 
@@ -73,6 +80,15 @@ td,th{padding:4px;text-align:center}
 <div class="card">
  <div class="small">💰 JÄRGMINE PANUS</div>
  <div class="big" id="bet">—</div>
+
+ <select id="betMode" onchange="save()">
+  <option value="auto">Auto (järjestikune)</option>
+  <option value="manual">Manuaalne</option>
+ </select>
+
+ <input id="manualBet" type="number" min="1" step="1"
+  placeholder="Sisesta manuaalne panus"
+  oninput="save()">
 </div>
 
 <div class="card">
@@ -91,10 +107,8 @@ td,th{padding:4px;text-align:center}
 </div>
 
 <script>
-/* ---------- UTIL ---------- */
 function $(id){ return document.getElementById(id); }
 
-/* ---------- STATE ---------- */
 var state = JSON.parse(localStorage.getItem("mk_state")) || {
  history:[],
  transitions:{},
@@ -103,12 +117,13 @@ var state = JSON.parse(localStorage.getItem("mk_state")) || {
  miss:0,
  clicks:0,
  bets:0,
- betHistory:[]
+ betHistory:[],
+ betMode:"auto",
+ manualBet:10
 };
 
 var betsTable=[1,2,4,8,16,32,64,128,256,512];
 
-/* ---------- LOGIC ---------- */
 function markovKey(){
  if(state.history.length<2) return null;
  return state.history.slice(-2).join(",");
@@ -116,43 +131,30 @@ function markovKey(){
 
 function predict(){
  var k=markovKey();
- if(!k) return null;
- var r=state.transitions[k];
- if(!r) return null;
-
- var best=null,max=-1;
+ if(!k||!state.transitions[k]) return null;
+ var r=state.transitions[k],best=null,max=-1;
  for(var n in r){
-  if(r[n]>max){
-   max=r[n];
-   best=n;
-  }
+  if(r[n]>max){max=r[n];best=n;}
  }
  return best!==null?parseInt(best):null;
 }
 
 function confidence(){
  var k=markovKey();
- if(!k) return null;
- var r=state.transitions[k];
- if(!r) return null;
-
- var sum=0,max=0;
- for(var n in r){
-  sum+=r[n];
-  if(r[n]>max) max=r[n];
- }
+ if(!k||!state.transitions[k]) return null;
+ var r=state.transitions[k],sum=0,max=0;
+ for(var n in r){sum+=r[n];if(r[n]>max)max=r[n];}
  if(sum===0) return null;
  return Math.round(max/sum*100);
 }
 
 function currentBet(){
+ if(state.betMode==="manual") return Number(state.manualBet)||0;
  return betsTable[Math.min(state.miss,betsTable.length-1)];
 }
 
-/* ---------- INPUT ---------- */
 function inputNum(n){
  state.clicks++;
-
  var bet=currentBet();
 
  if(state.lastPrediction!==null){
@@ -164,18 +166,13 @@ function inputNum(n){
    state.miss=0;
   }else{
    state.bankroll-=bet;
-   state.miss++;
+   if(state.betMode==="auto") state.miss++;
   }
 
   state.betHistory.unshift({
-   p:state.lastPrediction,
-   r:n,
-   b:bet,
-   w:win,
-   br:state.bankroll
+   p:state.lastPrediction,r:n,b:bet,w:win,br:state.bankroll
   });
-  if(state.betHistory.length>50)
-   state.betHistory.pop();
+  if(state.betHistory.length>50) state.betHistory.pop();
  }
 
  if(state.history.length>=2){
@@ -188,42 +185,34 @@ function inputNum(n){
  if(state.history.length>3) state.history.shift();
 
  state.lastPrediction=predict();
- save();
- updateUI();
+ save(); updateUI();
 }
 
-/* ---------- UI ---------- */
 function updateUI(){
- $("pred").innerText = state.lastPrediction!==null ? state.lastPrediction : "—";
+ $("pred").innerText=state.lastPrediction!==null?state.lastPrediction:"—";
 
  var c=confidence();
- if(c===null){
-  $("conf").innerText="Confidence —";
-  $("conf").className="small";
- }else{
-  $("conf").innerText="Confidence "+c+"%";
-  $("conf").className="small "+(c>=60?"green":c>=40?"yellow":"red");
- }
+ $("conf").innerText=c?("Confidence "+c+"%"):"Confidence —";
+ $("conf").className="small "+(c>=60?"green":c>=40?"yellow":"");
 
  $("bet").innerText=currentBet();
  $("bank").innerText=state.bankroll.toFixed(2);
  $("clicks").innerText=state.clicks;
  $("bets").innerText=state.bets;
 
- var html="<tr><th>#</th><th>Enn</th><th>Tulemus</th><th>Panus</th><th>BR</th></tr>";
+ $("betMode").value=state.betMode;
+ $("manualBet").value=state.manualBet;
+
+ var h="<tr><th>#</th><th>Enn</th><th>Tulemus</th><th>Panus</th><th>BR</th></tr>";
  for(var i=0;i<state.betHistory.length;i++){
-  var h=state.betHistory[i];
-  html+="<tr class='"+(h.w?"green":"red")+"'>"+
-        "<td>"+(state.betHistory.length-i)+"</td>"+
-        "<td>"+h.p+" → "+h.r+"</td>"+
-        "<td>"+(h.w?"WIN":"LOSS")+"</td>"+
-        "<td>"+h.b+"</td>"+
-        "<td>"+h.br.toFixed(2)+"</td></tr>";
+  var x=state.betHistory[i];
+  h+="<tr class='"+(x.w?"green":"red")+"'><td>"+(state.betHistory.length-i)+
+  "</td><td>"+x.p+" → "+x.r+"</td><td>"+(x.w?"WIN":"LOSS")+
+  "</td><td>"+x.b+"</td><td>"+x.br.toFixed(2)+"</td></tr>";
  }
- $("history").innerHTML=html;
+ $("history").innerHTML=h;
 }
 
-/* ---------- RESET ---------- */
 function resetSession(){
  state.history=[];
  state.transitions={};
@@ -232,16 +221,15 @@ function resetSession(){
  state.clicks=0;
  state.bets=0;
  state.betHistory=[];
- save();
- updateUI();
+ save(); updateUI();
 }
 
-/* ---------- STORAGE ---------- */
 function save(){
+ state.betMode=$("betMode").value;
+ state.manualBet=Number($("manualBet").value)||0;
  localStorage.setItem("mk_state",JSON.stringify(state));
 }
 
-/* ---------- INIT ---------- */
 document.addEventListener("DOMContentLoaded",updateUI);
 </script>
 
