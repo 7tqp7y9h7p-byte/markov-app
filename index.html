@@ -91,7 +91,6 @@ td,th { padding:4px; text-align:center; }
 <div class="card">
   <div class="small">✍️ MANUAALSED PANUSED (20)</div>
   <div class="grid" id="betGrid">
-    <!-- 20 panuse lahtrit -->
     <input type="number"><input type="number"><input type="number"><input type="number"><input type="number">
     <input type="number"><input type="number"><input type="number"><input type="number"><input type="number">
     <input type="number"><input type="number"><input type="number"><input type="number"><input type="number">
@@ -133,13 +132,15 @@ for(var i=0;i<inputs.length;i++){
     inputs[i].oninput = function(){
       state.manualBets[i] = Number(inputs[i].value) || 0;
       save();
+      updateUI();
     };
   })(i);
 }
 
 function markovKey(){
   if(state.history.length < 2) return null;
-  return state.history[state.history.length-2] + "," + state.history[state.history.length-1];
+  return state.history[state.history.length-2] + "," +
+         state.history[state.history.length-1];
 }
 
 function predict(){
@@ -177,18 +178,28 @@ function inputNum(n){
       state.bankroll -= bet;
       if(state.index < 19) state.index++;
     }
-    state.betHistory.unshift({p:state.lastPrediction,r:n,b:bet,w:win,br:state.bankroll});
-    if(state.betHistory.length > 50) state.betHistory.pop();
+    state.betHistory.unshift({
+      p: state.lastPrediction,
+      r: n,
+      b: bet,
+      w: win,
+      br: state.bankroll
+    });
+    if(state.betHistory.length > 50)
+      state.betHistory.pop();
   }
 
   var key = markovKey();
   if(key){
-    if(!state.transitions[key]) state.transitions[key] = {};
-    state.transitions[key][n] = (state.transitions[key][n] || 0) + 1;
+    if(!state.transitions[key])
+      state.transitions[key] = {};
+    state.transitions[key][n] =
+      (state.transitions[key][n] || 0) + 1;
   }
 
   state.history.push(n);
-  if(state.history.length > 3) state.history.shift();
+  if(state.history.length > 3)
+    state.history.shift();
 
   state.lastPrediction = predict();
   save();
@@ -196,32 +207,58 @@ function inputNum(n){
 }
 
 function updateUI(){
-  $("pred").innerHTML = state.lastPrediction !== null ? state.lastPrediction : "—";
+  $("pred").innerHTML =
+    state.lastPrediction !== null ? state.lastPrediction : "—";
+
   var c = confidence();
-  $("conf").innerHTML = c ? ("Confidence " + c + "%") : "Confidence —";
-  $("nextBet").innerHTML = state.manualBets[state.index] || "—";
+  $("conf").innerHTML =
+    c ? ("Confidence " + c + "%") : "Confidence —";
+
+  $("nextBet").innerHTML =
+    state.manualBets[state.index] || "—";
+
   $("bankroll").innerHTML = state.bankroll.toFixed(2);
   $("clicks").innerHTML = state.clicks;
   $("bets").innerHTML = state.bets;
   $("step").innerHTML = state.index + 1;
 
   for(var i=0;i<inputs.length;i++){
-    inputs[i].className = (i === state.index) ? "active" : "";
+    inputs[i].className =
+      (i === state.index) ? "active" : "";
   }
 
-  var h = "<tr><th>#</th><th>Enn</th><th>Tulemus</th><th>Panus</th><th>BR</th></tr>";
+  var h =
+    "<tr><th>#</th><th>Enn</th><th>Tulemus</th><th>Panus</th><th>BR</th></tr>";
+
   for(var i=0;i<state.betHistory.length;i++){
     var x = state.betHistory[i];
-    h += "<tr class='"+(x.w?"green":"red")+"'><td>"+(state.betHistory.length-i)+
-    "</td><td>"+x.p+" → "+x.r+"</td><td>"+(x.w?"WIN":"LOSS")+
-    "</td><td>"+x.b+"</td><td>"+x.br.toFixed(2)+"</td></tr>";
+    h += "<tr class='" + (x.w?"green":"red") + "'>" +
+      "<td>"+(state.betHistory.length-i)+"</td>" +
+      "<td>"+x.p+" → "+x.r+"</td>" +
+      "<td>"+(x.w?"WIN":"LOSS")+"</td>" +
+      "<td>"+x.b+"</td>" +
+      "<td>"+x.br.toFixed(2)+"</td></tr>";
   }
   $("history").innerHTML = h;
 }
 
 function resetAll(){
-  localStorage.removeItem("mk_state");
-  location.reload();
+  var keepBets = state.manualBets.slice();
+
+  state = {
+    history: [],
+    transitions: {},
+    lastPrediction: null,
+    bankroll: 1000,
+    clicks: 0,
+    bets: 0,
+    manualBets: keepBets,
+    index: 0,
+    betHistory: []
+  };
+
+  save();
+  updateUI();
 }
 
 function save(){
