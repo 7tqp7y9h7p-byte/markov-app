@@ -12,21 +12,38 @@ body {
   color: white;
   padding: 14px;
 }
-button {
-  width: 23%;
-  padding: 16px;
-  margin: 1%;
-  font-size: 22px;
-  border-radius: 12px;
+
+/* NUMBRINUPUD */
+.btn-row {
+  display: flex;
+  gap: 8px;
+}
+.btn-row button {
+  flex: 1;
+  padding: 18px;
+  font-size: 26px;
+  border-radius: 14px;
   border: none;
-  background: #2563eb;
   color: white;
 }
+
+/* värvid */
+.btn-0 { background:#16a34a; }   /* roheline */
+.btn-1 { background:#2563eb; }   /* sinine */
+.btn-2 { background:#f59e0b; }   /* oranž */
+.btn-3 { background:#dc2626; }   /* punane */
+
 .reset {
-  background: #dc2626;
+  background: #7c2d12;
   width: 100%;
+  padding: 14px;
+  font-size: 18px;
+  border-radius: 12px;
+  border: none;
+  color: white;
   margin-top: 10px;
 }
+
 .card {
   background: #0f172a;
   padding: 14px;
@@ -43,6 +60,7 @@ button {
   opacity: 0.7;
   text-align: center;
 }
+
 .grid {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
@@ -57,8 +75,10 @@ input {
 .active {
   outline: 2px solid #22c55e;
 }
+
 .green { color:#22c55e; }
 .red { color:#ef4444; }
+
 table { width:100%; font-size:12px; }
 td,th { padding:4px; text-align:center; }
 </style>
@@ -68,11 +88,11 @@ td,th { padding:4px; text-align:center; }
 
 <h2>📊 Markov Ennustaja</h2>
 
-<div>
-  <button onclick="inputNum(0)">0</button>
-  <button onclick="inputNum(1)">1</button>
-  <button onclick="inputNum(2)">2</button>
-  <button onclick="inputNum(3)">3</button>
+<div class="btn-row">
+  <button class="btn-0" onclick="inputNum(0)">0</button>
+  <button class="btn-1" onclick="inputNum(1)">1</button>
+  <button class="btn-2" onclick="inputNum(2)">2</button>
+  <button class="btn-3" onclick="inputNum(3)">3</button>
 </div>
 
 <button class="reset" onclick="resetAll()">🔄 RESET</button>
