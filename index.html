@@ -12,6 +12,8 @@ body {
   color: white;
   padding: 14px;
 }
+
+/* NUMBRINUPUD */
 .btn-row {
   display: flex;
   gap: 8px;
@@ -24,10 +26,12 @@ body {
   border: none;
   color: white;
 }
-.btn-0 { background:#16a34a; }
-.btn-1 { background:#2563eb; }
-.btn-2 { background:#f59e0b; }
-.btn-3 { background:#dc2626; }
+
+/* värvid */
+.btn-0 { background:#16a34a; }   /* roheline */
+.btn-1 { background:#2563eb; }   /* sinine */
+.btn-2 { background:#f59e0b; }   /* oranž */
+.btn-3 { background:#dc2626; }   /* punane */
 
 .reset {
   background: #7c2d12;
@@ -46,8 +50,16 @@ body {
   border-radius: 14px;
   margin-top: 12px;
 }
-.big { font-size: 34px; font-weight: bold; text-align: center; }
-.small { font-size: 13px; opacity: 0.7; text-align: center; }
+.big {
+  font-size: 34px;
+  font-weight: bold;
+  text-align: center;
+}
+.small {
+  font-size: 13px;
+  opacity: 0.7;
+  text-align: center;
+}
 
 .grid {
   display: grid;
@@ -60,12 +72,14 @@ input {
   border-radius: 8px;
   border: none;
 }
-.active { outline: 2px solid #22c55e; }
+.active {
+  outline: 2px solid #22c55e;
+}
 
 .green { color:#22c55e; }
 .red { color:#ef4444; }
 
-table { width:100%; font-size:11px; }
+table { width:100%; font-size:12px; }
 td,th { padding:4px; text-align:center; }
 </style>
 </head>
@@ -112,8 +126,8 @@ td,th { padding:4px; text-align:center; }
 </div>
 
 <div class="card">
-  <b>📜 ENNUSTUSTE AJALUGU (max 500)</b>
-  <table id="predHistory"></table>
+  <b>📜 Panuste ajalugu</b>
+  <table id="history"></table>
 </div>
 
 <script>
@@ -128,8 +142,7 @@ var state = JSON.parse(localStorage.getItem("mk_state")) || {
   bets: 0,
   manualBets: Array(20).fill(1),
   index: 0,
-  betHistory: [],
-  predictionHistory: []
+  betHistory: []
 };
 
 var inputs = $("betGrid").getElementsByTagName("input");
@@ -138,7 +151,8 @@ for(var i=0;i<inputs.length;i++){
   (function(i){
     inputs[i].oninput = function(){
       state.manualBets[i] = Number(inputs[i].value) || 0;
-      save(); updateUI();
+      save();
+      updateUI();
     };
   })(i);
 }
@@ -177,15 +191,6 @@ function inputNum(n){
   if(state.lastPrediction !== null){
     state.bets++;
     var win = (n === state.lastPrediction);
-
-    state.predictionHistory.unshift({
-      p: state.lastPrediction,
-      r: n,
-      w: win
-    });
-    if(state.predictionHistory.length > 500)
-      state.predictionHistory.pop();
-
     if(win){
       state.bankroll += bet * 2;
       state.index = 0;
@@ -193,6 +198,15 @@ function inputNum(n){
       state.bankroll -= bet;
       if(state.index < 19) state.index++;
     }
+    state.betHistory.unshift({
+      p: state.lastPrediction,
+      r: n,
+      b: bet,
+      w: win,
+      br: state.bankroll
+    });
+    if(state.betHistory.length > 500)
+      state.betHistory.pop();
   }
 
   var key = markovKey();
@@ -208,35 +222,49 @@ function inputNum(n){
     state.history.shift();
 
   state.lastPrediction = predict();
-  save(); updateUI();
+  save();
+  updateUI();
 }
 
 function updateUI(){
-  $("pred").innerHTML = state.lastPrediction !== null ? state.lastPrediction : "—";
+  $("pred").innerHTML =
+    state.lastPrediction !== null ? state.lastPrediction : "—";
+
   var c = confidence();
-  $("conf").innerHTML = c ? ("Confidence " + c + "%") : "Confidence —";
-  $("nextBet").innerHTML = state.manualBets[state.index] || "—";
+  $("conf").innerHTML =
+    c ? ("Confidence " + c + "%") : "Confidence —";
+
+  $("nextBet").innerHTML =
+    state.manualBets[state.index] || "—";
+
   $("bankroll").innerHTML = state.bankroll.toFixed(2);
   $("clicks").innerHTML = state.clicks;
   $("bets").innerHTML = state.bets;
   $("step").innerHTML = state.index + 1;
 
-  for(var i=0;i<inputs.length;i++)
-    inputs[i].className = (i === state.index) ? "active" : "";
-
-  var h = "<tr><th>#</th><th>Enn</th><th>Tulemus</th><th>WIN</th></tr>";
-  for(var i=0;i<state.predictionHistory.length;i++){
-    var x = state.predictionHistory[i];
-    h += "<tr class='"+(x.w?"green":"red")+"'>" +
-         "<td>"+(state.predictionHistory.length-i)+"</td>" +
-         "<td>"+x.p+"</td><td>"+x.r+"</td>" +
-         "<td>"+(x.w?"✔":"✖")+"</td></tr>";
+  for(var i=0;i<inputs.length;i++){
+    inputs[i].className =
+      (i === state.index) ? "active" : "";
   }
-  $("predHistory").innerHTML = h;
+
+  var h =
+    "<tr><th>#</th><th>Enn</th><th>Tulemus</th><th>Panus</th><th>BR</th></tr>";
+
+  for(var i=0;i<state.betHistory.length;i++){
+    var x = state.betHistory[i];
+    h += "<tr class='" + (x.w?"green":"red") + "'>" +
+      "<td>"+(state.betHistory.length-i)+"</td>" +
+      "<td>"+x.p+" → "+x.r+"</td>" +
+      "<td>"+(x.w?"WIN":"LOSS")+"</td>" +
+      "<td>"+x.b+"</td>" +
+      "<td>"+x.br.toFixed(2)+"</td></tr>";
+  }
+  $("history").innerHTML = h;
 }
 
 function resetAll(){
   var keepBets = state.manualBets.slice();
+
   state = {
     history: [],
     transitions: {},
@@ -246,10 +274,11 @@ function resetAll(){
     bets: 0,
     manualBets: keepBets,
     index: 0,
-    betHistory: [],
-    predictionHistory: []
+    betHistory: []
   };
-  save(); updateUI();
+
+  save();
+  updateUI();
 }
 
 function save(){
