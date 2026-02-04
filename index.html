@@ -215,6 +215,11 @@ function inputNum(n){
     if(state.betHistory.length > 500)
       state.betHistory.pop();
   }
+  if(!canBet()){
+  alert("Confidence liiga madal: " + confidence() + "%");
+  return;
+}
+placeBet();
 
   var key = markovKey();
   if(key){
