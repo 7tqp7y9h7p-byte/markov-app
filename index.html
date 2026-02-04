@@ -215,11 +215,26 @@ function inputNum(n){
     if(state.betHistory.length > 500)
       state.betHistory.pop();
   }
+  function placeBet(){
   if(!canBet()){
-  alert("Confidence liiga madal: " + confidence() + "%");
-  return;
+    alert("Confidence liiga madal");
+    return;
+  }
+
+  var bet = state.manualBets[state.step] || 1;
+  var pred = state.lastPrediction;
+  var last = state.history[state.history.length-1];
+
+  var win = pred===last;
+  state.bankroll += win ? bet*2 : -bet;
+  state.betHistory.unshift({b:bet,p:pred,r:last,w:win});
+  if(state.betHistory.length>100) state.betHistory.pop();
+
+  state.step = win ? 0 : Math.min(state.step+1,19);
+
+  save();
+  updateUI();
 }
-placeBet();
 
   var key = markovKey();
   if(key){
