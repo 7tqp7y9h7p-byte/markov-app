@@ -184,6 +184,11 @@ function confidence(){
   for(var n in r){ sum += r[n]; if(r[n] > max) max = r[n]; }
   return sum ? Math.round(max / sum * 100) : null;
 }
+function canBet(){
+  var conf = confidence();
+  if(conf === null) return false;
+  return conf >= MIN_CONFIDENCE;
+}
 
 function inputNum(n){
   state.clicks++;
