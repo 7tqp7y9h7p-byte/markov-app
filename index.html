@@ -82,6 +82,18 @@ td,th{padding:4px; text-align:center;}
 </div>
 
 <div class="card">
+  <div class="small">⚖️ MUDELITE KAALUD</div>
+
+  <div class="small">Markov</div>
+  <input type="range" min="0" max="200" value="100" id="wMarkov">
+  <div class="small"><b id="wMarkovVal">1.00</b></div>
+
+  <div class="small">Sagedus</div>
+  <input type="range" min="0" max="200" value="50" id="wFreq">
+  <div class="small"><b id="wFreqVal">0.50</b></div>
+</div>
+
+<div class="card">
   <div class="small">🎚 Min confidence panustamiseks</div>
   <input type="range" min="0" max="100" value="0" id="confLimit">
   <div class="small">Valitud: <b id="confLimitVal">0%</b></div>
@@ -129,14 +141,14 @@ var state = JSON.parse(localStorage.getItem("mk_state")) || {
 
 function save(){ localStorage.setItem("mk_state", JSON.stringify(state)); }
 
-/* ================== MARKOV ================== */
+/* ================= MARKOV ================= */
 function markovKey(){
   if(state.history.length < 2) return null;
   return state.history[state.history.length-2] + "," +
          state.history[state.history.length-1];
 }
 
-function predict(){ // puhas Markov
+function predict(){
   var key = markovKey();
   var r = state.transitions[key];
   if(!r) return null;
@@ -156,7 +168,7 @@ function confidence(){
   return sum ? Math.round(max/sum*100) : null;
 }
 
-/* ============== LISALOOGIKA ================= */
+/* ============== SAGEDUS ================= */
 function freqPredict(){
   var c=[0,0,0,0];
   state.history.forEach(n=>c[n]++);
@@ -165,21 +177,24 @@ function freqPredict(){
   return c.indexOf(max);
 }
 
-/* ========== KOMBINATSIOON =================== */
+/* ========== KOMBINATSIOON =============== */
 function combinedPredict(){
   var votes=[0,0,0,0];
 
-  var m=predict();      // Markov
-  if(m!==null) votes[m]+=1.0;
+  var wM = $("wMarkov").value / 100;
+  var wF = $("wFreq").value / 100;
 
-  var f=freqPredict(); // Sagedus
-  if(f!==null) votes[f]+=0.5;
+  var m = predict();
+  if(m!==null) votes[m]+=wM;
+
+  var f = freqPredict();
+  if(f!==null) votes[f]+=wF;
 
   var best=votes.indexOf(Math.max(...votes));
   return votes[best]>0 ? best : null;
 }
 
-/* ============== BET CONTROL ================= */
+/* ============== BET CONTROL ============= */
 function canBet(){
   var c=confidence();
   var limit=Number($("confLimit").value);
@@ -187,7 +202,7 @@ function canBet(){
   return c>=limit;
 }
 
-/* ============== INPUT ======================= */
+/* ============== INPUT =================== */
 function inputNum(n){
   state.clicks++;
 
@@ -216,12 +231,11 @@ function inputNum(n){
   state.history.push(n);
   if(state.history.length>2) state.history.shift();
 
-  state.lastPrediction = combinedPredict(); // ⭐ AINUS OLULINE MUUTUS
-  save();
-  updateUI();
+  state.lastPrediction = combinedPredict();
+  save(); updateUI();
 }
 
-/* ================= UNDO ===================== */
+/* ================= UNDO ================= */
 function undo(){
   if(state.betHistory.length===0) return;
   var last=state.betHistory.shift();
@@ -235,7 +249,7 @@ function undo(){
   save(); updateUI();
 }
 
-/* ================= RESET ==================== */
+/* ================= RESET ================= */
 function resetAll(){
   var keep=state.manualBets.slice();
   state={
@@ -246,12 +260,15 @@ function resetAll(){
   save(); updateUI();
 }
 
-/* ================= UI ======================= */
+/* ================= UI =================== */
 function updateUI(){
   $("pred").innerHTML = state.lastPrediction ?? "—";
   var c=confidence();
   $("conf").innerHTML = c ? "Confidence "+c+"%" : "Confidence —";
   $("confLimitVal").innerHTML = $("confLimit").value+"%";
+  $("wMarkovVal").innerHTML = ($("wMarkov").value/100).toFixed(2);
+  $("wFreqVal").innerHTML = ($("wFreq").value/100).toFixed(2);
+
   $("nextBet").innerHTML = canBet()?state.manualBets[state.index]:"—";
   $("bankroll").innerHTML = state.bankroll.toFixed(2);
   $("clicks").innerHTML = state.clicks;
