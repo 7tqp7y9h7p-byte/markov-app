@@ -167,7 +167,25 @@ function predict(){
   for(var n in r){
     if(r[n]>max){ max=r[n]; best=n; }
   }
-  return best!==null ? Number(best) : null;
+  return best!==null ? Number(best) : function freqPredict(){
+  let c = [0,0,0,0];
+  state.history.forEach(n => c[n]++);
+  let max = Math.max(...c);
+  if(max === 0) return null;
+  return c.indexOf(max);
+}
+
+function combinedPredict(){
+  let votes = [0,0,0,0];
+
+  let m = predict();       // Markov
+  if(m !== null) votes[m] += 1.0;
+
+  let f = freqPredict();  // Sagedus
+  if(f !== null) votes[f] += 0.5;
+
+  let best = votes.indexOf(Math.max(...votes));
+  return votes[best] > 0 ? best : null;
 }
 
 function confidence(){
