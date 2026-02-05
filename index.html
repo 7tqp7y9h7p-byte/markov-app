@@ -6,61 +6,23 @@
 <title>Markov Ennustaja</title>
 
 <style>
-body {
-  font-family: -apple-system, BlinkMacSystemFont;
-  background: #020617;
-  color: white;
-  padding: 14px;
-}
-
-.btn-row { display:flex; gap:8px; }
-.btn-row button {
-  flex:1; padding:18px; font-size:26px;
-  border-radius:14px; border:none; color:white;
-}
-
-.btn-0{background:#16a34a;}
-.btn-1{background:#2563eb;}
-.btn-2{background:#f59e0b;}
-.btn-3{background:#dc2626;}
-
-.card {
-  background:#0f172a;
-  padding:14px;
-  border-radius:14px;
-  margin-top:12px;
-}
-
-.big { font-size:34px; font-weight:bold; text-align:center; }
-.small { font-size:13px; opacity:.7; text-align:center; }
-
-.reset {
-  width:100%; padding:14px; font-size:18px;
-  border-radius:12px; border:none; color:white;
-  margin-top:8px;
-}
-.reset.red{background:#7c2d12;}
-.reset.gray{background:#334155;}
-
-.grid {
-  display:grid;
-  grid-template-columns:repeat(5,1fr);
-  gap:6px;
-}
-
-input[type=number]{
-  width:100%; padding:8px;
-  border-radius:8px; border:none;
-}
-
-input[type=range]{width:100%;}
-
-.active{outline:2px solid #22c55e;}
-.green{color:#22c55e;}
-.redtxt{color:#ef4444;}
-
-table{width:100%; font-size:12px;}
-td,th{padding:4px; text-align:center;}
+body{font-family:-apple-system;background:#020617;color:white;padding:14px}
+.btn-row{display:flex;gap:8px}
+.btn-row button{flex:1;padding:18px;font-size:26px;border-radius:14px;border:none;color:white}
+.btn-0{background:#16a34a}.btn-1{background:#2563eb}.btn-2{background:#f59e0b}.btn-3{background:#dc2626}
+.card{background:#0f172a;padding:14px;border-radius:14px;margin-top:12px}
+.big{font-size:34px;font-weight:bold;text-align:center}
+.small{font-size:13px;opacity:.7;text-align:center}
+input[type=range]{width:100%}
+.reset{width:100%;padding:12px;border-radius:10px;border:none;margin-top:6px}
+.red{background:#7c2d12;color:white}
+.gray{background:#334155;color:white}
+.grid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+input[type=number]{padding:6px;border-radius:6px;border:none}
+.active{outline:2px solid #22c55e}
+.green{color:#22c55e}.redtxt{color:#ef4444}
+table{width:100%;font-size:12px}
+td,th{text-align:center;padding:4px}
 </style>
 </head>
 
@@ -69,235 +31,164 @@ td,th{padding:4px; text-align:center;}
 <h2>📊 Markov Ennustaja</h2>
 
 <div class="btn-row">
-  <button class="btn-0" onclick="inputNum(0)">0</button>
-  <button class="btn-1" onclick="inputNum(1)">1</button>
-  <button class="btn-2" onclick="inputNum(2)">2</button>
-  <button class="btn-3" onclick="inputNum(3)">3</button>
+<button class="btn-0" onclick="inputNum(0)">0</button>
+<button class="btn-1" onclick="inputNum(1)">1</button>
+<button class="btn-2" onclick="inputNum(2)">2</button>
+<button class="btn-3" onclick="inputNum(3)">3</button>
 </div>
 
 <div class="card">
-  <div class="small">🔮 JÄRGMINE ENNUSTUS</div>
-  <div class="big" id="pred">—</div>
-  <div class="small" id="conf">Confidence —</div>
+<div class="small">🔮 JÄRGMINE ENNUSTUS</div>
+<div class="big" id="pred">—</div>
+<div class="small" id="conf">Confidence —</div>
 </div>
 
 <div class="card">
-  <div class="small">⚖️ MUDELITE KAALUD</div>
-
-  <div class="small">Markov</div>
-  <input type="range" min="0" max="200" value="100" id="wMarkov">
-  <div class="small"><b id="wMarkovVal">1.00</b></div>
-
-  <div class="small">Sagedus</div>
-  <input type="range" min="0" max="200" value="50" id="wFreq">
-  <div class="small"><b id="wFreqVal">0.50</b></div>
+<div class="small">🎛 PRESETID</div>
+<button class="reset gray" onclick="preset('con')">Conservative</button>
+<button class="reset gray" onclick="preset('bal')">Balanced</button>
+<button class="reset gray" onclick="preset('agg')">Aggressive</button>
 </div>
 
 <div class="card">
-  <div class="small">🎚 Min confidence panustamiseks</div>
-  <input type="range" min="0" max="100" value="0" id="confLimit">
-  <div class="small">Valitud: <b id="confLimitVal">0%</b></div>
+<div class="small">⚖️ MUDELITE KAALUD</div>
+Markov <input type="range" min="0" max="200" value="100" id="wM"><b id="vM">1.00</b><br>
+Sagedus <input type="range" min="0" max="200" value="60" id="wF"><b id="vF">0.60</b><br>
+Trend <input type="range" min="0" max="200" value="40" id="wT"><b id="vT">0.40</b>
 </div>
 
 <div class="card">
-  <div class="small">💰 JÄRGMINE PANUS</div>
-  <div class="big" id="nextBet">—</div>
+<div class="small">💰 JÄRGMINE PANUS</div>
+<div class="big" id="nextBet">—</div>
 </div>
 
-<button class="reset red" onclick="resetAll()">🔄 RESET</button>
-<button class="reset gray" onclick="undo()">↩️ UNDO</button>
+<button class="reset red" onclick="resetAll()">RESET</button>
 
 <div class="card">
-  <div class="small">✍️ MANUAALSED PANUSED (20)</div>
-  <div class="grid" id="betGrid"></div>
-</div>
-
-<div class="card">
-  Bankroll: <b id="bankroll">0</b><br>
-  Vajutusi: <b id="clicks">0</b><br>
-  Panuseid: <b id="bets">0</b><br>
-  Aktiivne aste: <b id="step">1</b>
+<div class="small">✍️ MANUAALSED PANUSED</div>
+<div class="grid" id="betGrid"></div>
 </div>
 
 <div class="card">
-  <b>📜 Panuste ajalugu</b>
-  <table id="history"></table>
+Bankroll: <b id="bankroll">0</b><br>
+Panuseid: <b id="bets">0</b><br>
+Aste: <b id="step">1</b>
+</div>
+
+<div class="card">
+<b>📜 AJALUGU</b>
+<table id="history"></table>
 </div>
 
 <script>
-function $(id){ return document.getElementById(id); }
+function $(i){return document.getElementById(i)}
 
-var state = JSON.parse(localStorage.getItem("mk_state")) || {
-  history: [],
-  transitions: {},
-  lastPrediction: null,
-  bankroll: 1000,
-  clicks: 0,
-  bets: 0,
-  manualBets: Array(20).fill(1),
-  index: 0,
-  betHistory: []
-};
-
-function save(){ localStorage.setItem("mk_state", JSON.stringify(state)); }
-
-/* ================= MARKOV ================= */
-function markovKey(){
-  if(state.history.length < 2) return null;
-  return state.history[state.history.length-2] + "," +
-         state.history[state.history.length-1];
+var state=JSON.parse(localStorage.getItem("mk"))||{
+hist:[],trans:{},last:null,bank:1000,bets:0,
+manual:Array(20).fill(1),idx:0,log:[],
+perf:{m:{t:0,h:0},f:{t:0,h:0},t:{t:0,h:0}}
 }
 
-function predict(){
-  var key = markovKey();
-  var r = state.transitions[key];
-  if(!r) return null;
-  var best=null,max=-1;
-  for(var n in r){
-    if(r[n]>max){ max=r[n]; best=n; }
-  }
-  return best!==null ? Number(best) : null;
+function save(){localStorage.setItem("mk",JSON.stringify(state))}
+
+function markovKey(){return state.hist.length>=2?state.hist.at(-2)+","+state.hist.at(-1):null}
+
+function mPredict(){
+let k=markovKey(),r=state.trans[k];if(!r)return null
+return Object.keys(r).reduce((a,b)=>r[a]>r[b]?a:b)
 }
 
-function confidence(){
-  var key = markovKey();
-  var r = state.transitions[key];
-  if(!r) return null;
-  var sum=0,max=0;
-  for(var n in r){ sum+=r[n]; if(r[n]>max) max=r[n]; }
-  return sum ? Math.round(max/sum*100) : null;
+function fPredict(){
+let c=[0,0,0,0];state.hist.forEach(n=>c[n]++)
+let m=Math.max(...c);return m?c.indexOf(m):null
 }
 
-/* ============== SAGEDUS ================= */
-function freqPredict(){
-  var c=[0,0,0,0];
-  state.history.forEach(n=>c[n]++);
-  var max=Math.max(...c);
-  if(max===0) return null;
-  return c.indexOf(max);
+function tPredict(){
+if(state.hist.length<2)return null
+let a=state.hist.at(-1),b=state.hist.at(-2)
+if(a===b) return [0,1,2,3].filter(x=>x!==a)[Math.floor(Math.random()*3)]
+return a
 }
 
-/* ========== KOMBINATSIOON =============== */
-function combinedPredict(){
-  var votes=[0,0,0,0];
+function combined(){
+let v=[0,0,0,0]
+let wm=wM.value/100,wf=wF.value/100,wt=wT.value/100
 
-  var wM = $("wMarkov").value / 100;
-  var wF = $("wFreq").value / 100;
+let m=mPredict();if(m!=null){v[m]+=wm;state.perf.m.t++}
+let f=fPredict();if(f!=null){v[f]+=wf;state.perf.f.t++}
+let t=tPredict();if(t!=null){v[t]+=wt;state.perf.t.t++}
 
-  var m = predict();
-  if(m!==null) votes[m]+=wM;
-
-  var f = freqPredict();
-  if(f!==null) votes[f]+=wF;
-
-  var best=votes.indexOf(Math.max(...votes));
-  return votes[best]>0 ? best : null;
+return v.indexOf(Math.max(...v))
 }
 
-/* ============== BET CONTROL ============= */
-function canBet(){
-  var c=confidence();
-  var limit=Number($("confLimit").value);
-  if(c===null) return false;
-  return c>=limit;
+function autoLearn(win){
+["m","f","t"].forEach(k=>{
+if(state.lastModels?.[k]!==undefined){
+if(state.lastModels[k]==state.last) win && state.perf[k].h++
+let p=state.perf[k]
+let acc=p.t? p.h/p.t:0.5
+let el=$("w"+k.toUpperCase())
+el.value=Math.max(10,Math.min(200,acc*200))
+}
+})
 }
 
-/* ============== INPUT =================== */
 function inputNum(n){
-  state.clicks++;
-
-  var bet=state.manualBets[state.index]||0;
-
-  if(state.lastPrediction!==null && canBet()){
-    state.bets++;
-    var win=(n===state.lastPrediction);
-    if(win){
-      state.bankroll+=bet*2;
-      state.index=0;
-    }else{
-      state.bankroll-=bet;
-      if(state.index<19) state.index++;
-    }
-    state.betHistory.unshift({p:state.lastPrediction,r:n,b:bet,w:win,br:state.bankroll});
-    if(state.betHistory.length>500) state.betHistory.pop();
-  }
-
-  var key=markovKey();
-  if(key){
-    state.transitions[key]=state.transitions[key]||{};
-    state.transitions[key][n]=(state.transitions[key][n]||0)+1;
-  }
-
-  state.history.push(n);
-  if(state.history.length>2) state.history.shift();
-
-  state.lastPrediction = combinedPredict();
-  save(); updateUI();
+let bet=state.manual[state.idx]
+if(state.last!=null){
+state.bets++
+let win=n==state.last
+if(win){state.bank+=bet*2;state.idx=0}else{state.bank-=bet;if(state.idx<19)state.idx++}
+state.log.unshift({p:state.last,r:n,b:bet,w:win,br:state.bank})
+if(state.log.length>500)state.log.pop()
+autoLearn(win)
 }
 
-/* ================= UNDO ================= */
-function undo(){
-  if(state.betHistory.length===0) return;
-  var last=state.betHistory.shift();
-  if(last.w) state.bankroll-=last.b*2;
-  else state.bankroll+=last.b;
-  state.index=last.w?0:Math.max(state.index-1,0);
-  state.history.pop();
-  state.clicks=Math.max(state.clicks-1,0);
-  state.bets=Math.max(state.bets-1,0);
-  state.lastPrediction=combinedPredict();
-  save(); updateUI();
+let k=markovKey()
+if(k){state.trans[k]=state.trans[k]||{};state.trans[k][n]=(state.trans[k][n]||0)+1}
+state.hist.push(n);if(state.hist.length>3)state.hist.shift()
+
+state.lastModels={m:mPredict(),f:fPredict(),t:tPredict()}
+state.last=combined()
+save();ui()
 }
 
-/* ================= RESET ================= */
+function preset(p){
+if(p=="con"){wM.value=80;wF.value=120;wT.value=20}
+if(p=="bal"){wM.value=100;wF.value=60;wT.value=40}
+if(p=="agg"){wM.value=140;wF.value=20;wT.value=80}
+ui()
+}
+
 function resetAll(){
-  var keep=state.manualBets.slice();
-  state={
-    history:[], transitions:{}, lastPrediction:null,
-    bankroll:1000, clicks:0, bets:0,
-    manualBets:keep, index:0, betHistory:[]
-  };
-  save(); updateUI();
+let m=state.manual.slice()
+state={hist:[],trans:{},last:null,bank:1000,bets:0,manual:m,idx:0,log:[],perf:{m:{t:0,h:0},f:{t:0,h:0},t:{t:0,h:0}}}
+save();ui()
 }
 
-/* ================= UI =================== */
-function updateUI(){
-  $("pred").innerHTML = state.lastPrediction ?? "—";
-  var c=confidence();
-  $("conf").innerHTML = c ? "Confidence "+c+"%" : "Confidence —";
-  $("confLimitVal").innerHTML = $("confLimit").value+"%";
-  $("wMarkovVal").innerHTML = ($("wMarkov").value/100).toFixed(2);
-  $("wFreqVal").innerHTML = ($("wFreq").value/100).toFixed(2);
+function ui(){
+pred.innerHTML=state.last??"—"
+bankroll.innerHTML=state.bank.toFixed(2)
+bets.innerHTML=state.bets
+step.innerHTML=state.idx+1
+nextBet.innerHTML=state.manual[state.idx]
+vM.innerHTML=(wM.value/100).toFixed(2)
+vF.innerHTML=(wF.value/100).toFixed(2)
+vT.innerHTML=(wT.value/100).toFixed(2)
 
-  $("nextBet").innerHTML = canBet()?state.manualBets[state.index]:"—";
-  $("bankroll").innerHTML = state.bankroll.toFixed(2);
-  $("clicks").innerHTML = state.clicks;
-  $("bets").innerHTML = state.bets;
-  $("step").innerHTML = state.index+1;
-
-  var grid=$("betGrid");
-  if(!grid.children.length){
-    for(let i=0;i<20;i++){
-      let inp=document.createElement("input");
-      inp.type="number";
-      inp.value=state.manualBets[i];
-      inp.oninput=()=>{ state.manualBets[i]=Number(inp.value)||0; save(); updateUI(); };
-      grid.appendChild(inp);
-    }
-  }
-  for(let i=0;i<20;i++)
-    grid.children[i].className=(i===state.index)?"active":"";
-
-  var h="<tr><th>#</th><th>Enn</th><th>Tulemus</th><th>Panus</th><th>BR</th></tr>";
-  state.betHistory.forEach((x,i)=>{
-    h+="<tr class='"+(x.w?"green":"redtxt")+"'><td>"+(state.betHistory.length-i)+
-       "</td><td>"+x.p+"→"+x.r+"</td><td>"+(x.w?"WIN":"LOSS")+
-       "</td><td>"+x.b+"</td><td>"+x.br.toFixed(2)+"</td></tr>";
-  });
-  $("history").innerHTML=h;
+let g=betGrid
+if(!g.children.length)for(let i=0;i<20;i++){
+let inp=document.createElement("input")
+inp.type="number";inp.value=state.manual[i]
+inp.oninput=()=>{state.manual[i]=+inp.value||0;save()}
+g.appendChild(inp)
+}
+[...g.children].forEach((x,i)=>x.className=i==state.idx?"active":"")
+history.innerHTML="<tr><th>#</th><th>→</th><th>R</th><th>B</th><th>BR</th></tr>"+
+state.log.map((x,i)=>`<tr class='${x.w?"green":"redtxt"}'><td>${state.log.length-i}</td><td>${x.p}</td><td>${x.w?"W":"L"}</td><td>${x.b}</td><td>${x.br}</td></tr>`).join("")
 }
 
-updateUI();
+ui()
 </script>
 </body>
 </html>
