@@ -232,7 +232,7 @@ function inputNum(n){
   state.history.push(n);
   if(state.history.length>2) state.history.shift();
 
-  state.lastPrediction = predict();
+  state.lastPrediction = combinedPredict();
   save();
   updateUI();
 }
