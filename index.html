@@ -13,76 +13,54 @@ body {
   padding: 14px;
 }
 
-.btn-row {
-  display: flex;
-  gap: 8px;
-}
+.btn-row { display:flex; gap:8px; }
 .btn-row button {
-  flex: 1;
-  padding: 18px;
-  font-size: 26px;
-  border-radius: 14px;
-  border: none;
-  color: white;
+  flex:1; padding:18px; font-size:26px;
+  border-radius:14px; border:none; color:white;
 }
 
-.btn-0 { background:#16a34a; }
-.btn-1 { background:#2563eb; }
-.btn-2 { background:#f59e0b; }
-.btn-3 { background:#dc2626; }
+.btn-0{background:#16a34a;}
+.btn-1{background:#2563eb;}
+.btn-2{background:#f59e0b;}
+.btn-3{background:#dc2626;}
 
 .card {
-  background: #0f172a;
-  padding: 14px;
-  border-radius: 14px;
-  margin-top: 12px;
+  background:#0f172a;
+  padding:14px;
+  border-radius:14px;
+  margin-top:12px;
 }
 
-.big {
-  font-size: 34px;
-  font-weight: bold;
-  text-align: center;
-}
-.small {
-  font-size: 13px;
-  opacity: 0.7;
-  text-align: center;
-}
+.big { font-size:34px; font-weight:bold; text-align:center; }
+.small { font-size:13px; opacity:.7; text-align:center; }
 
 .reset {
-  width: 100%;
-  padding: 14px;
-  font-size: 18px;
-  border-radius: 12px;
-  border: none;
-  color: white;
-  margin-top: 8px;
+  width:100%; padding:14px; font-size:18px;
+  border-radius:12px; border:none; color:white;
+  margin-top:8px;
 }
-
-.reset.red { background:#7c2d12; }
-.reset.gray { background:#334155; }
+.reset.red{background:#7c2d12;}
+.reset.gray{background:#334155;}
 
 .grid {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 6px;
+  display:grid;
+  grid-template-columns:repeat(5,1fr);
+  gap:6px;
 }
 
-input[type=number] {
-  width: 100%;
-  padding: 8px;
-  border-radius: 8px;
-  border: none;
+input[type=number]{
+  width:100%; padding:8px;
+  border-radius:8px; border:none;
 }
 
-input[type=range] { width:100%; }
+input[type=range]{width:100%;}
 
-.active { outline: 2px solid #22c55e; }
-.green { color:#22c55e; }
-.redtxt { color:#ef4444; }
+.active{outline:2px solid #22c55e;}
+.green{color:#22c55e;}
+.redtxt{color:#ef4444;}
 
-table { width:100%; font-size:12px; }
-td,th { padding:4px; text-align:center; }
+table{width:100%; font-size:12px;}
+td,th{padding:4px; text-align:center;}
 </style>
 </head>
 
@@ -149,17 +127,16 @@ var state = JSON.parse(localStorage.getItem("mk_state")) || {
   betHistory: []
 };
 
-function save(){
-  localStorage.setItem("mk_state", JSON.stringify(state));
-}
+function save(){ localStorage.setItem("mk_state", JSON.stringify(state)); }
 
+/* ================== MARKOV ================== */
 function markovKey(){
   if(state.history.length < 2) return null;
   return state.history[state.history.length-2] + "," +
          state.history[state.history.length-1];
 }
 
-function predict(){
+function predict(){ // puhas Markov
   var key = markovKey();
   var r = state.transitions[key];
   if(!r) return null;
@@ -167,25 +144,7 @@ function predict(){
   for(var n in r){
     if(r[n]>max){ max=r[n]; best=n; }
   }
-  return best!==null ? Number(best) : function freqPredict(){
-  let c = [0,0,0,0];
-  state.history.forEach(n => c[n]++);
-  let max = Math.max(...c);
-  if(max === 0) return null;
-  return c.indexOf(max);
-}
-
-function combinedPredict(){
-  let votes = [0,0,0,0];
-
-  let m = predict();       // Markov
-  if(m !== null) votes[m] += 1.0;
-
-  let f = freqPredict();  // Sagedus
-  if(f !== null) votes[f] += 0.5;
-
-  let best = votes.indexOf(Math.max(...votes));
-  return votes[best] > 0 ? best : null;
+  return best!==null ? Number(best) : null;
 }
 
 function confidence(){
@@ -197,92 +156,109 @@ function confidence(){
   return sum ? Math.round(max/sum*100) : null;
 }
 
-function canBet(){
-  var c = confidence();
-  var limit = Number($("confLimit").value);
-  if(c===null) return false;
-  return c >= limit;
+/* ============== LISALOOGIKA ================= */
+function freqPredict(){
+  var c=[0,0,0,0];
+  state.history.forEach(n=>c[n]++);
+  var max=Math.max(...c);
+  if(max===0) return null;
+  return c.indexOf(max);
 }
 
+/* ========== KOMBINATSIOON =================== */
+function combinedPredict(){
+  var votes=[0,0,0,0];
+
+  var m=predict();      // Markov
+  if(m!==null) votes[m]+=1.0;
+
+  var f=freqPredict(); // Sagedus
+  if(f!==null) votes[f]+=0.5;
+
+  var best=votes.indexOf(Math.max(...votes));
+  return votes[best]>0 ? best : null;
+}
+
+/* ============== BET CONTROL ================= */
+function canBet(){
+  var c=confidence();
+  var limit=Number($("confLimit").value);
+  if(c===null) return false;
+  return c>=limit;
+}
+
+/* ============== INPUT ======================= */
 function inputNum(n){
   state.clicks++;
 
-  var bet = state.manualBets[state.index] || 0;
+  var bet=state.manualBets[state.index]||0;
 
   if(state.lastPrediction!==null && canBet()){
     state.bets++;
-    var win = (n===state.lastPrediction);
+    var win=(n===state.lastPrediction);
     if(win){
-      state.bankroll += bet*2;
-      state.index = 0;
-    } else {
-      state.bankroll -= bet;
+      state.bankroll+=bet*2;
+      state.index=0;
+    }else{
+      state.bankroll-=bet;
       if(state.index<19) state.index++;
     }
     state.betHistory.unshift({p:state.lastPrediction,r:n,b:bet,w:win,br:state.bankroll});
     if(state.betHistory.length>500) state.betHistory.pop();
   }
 
-  var key = markovKey();
+  var key=markovKey();
   if(key){
-    state.transitions[key] = state.transitions[key] || {};
-    state.transitions[key][n] = (state.transitions[key][n]||0)+1;
+    state.transitions[key]=state.transitions[key]||{};
+    state.transitions[key][n]=(state.transitions[key][n]||0)+1;
   }
 
   state.history.push(n);
   if(state.history.length>2) state.history.shift();
 
-  state.lastPrediction = combinedPredict();
+  state.lastPrediction = combinedPredict(); // ⭐ AINUS OLULINE MUUTUS
   save();
   updateUI();
 }
 
+/* ================= UNDO ===================== */
 function undo(){
   if(state.betHistory.length===0) return;
-  var last = state.betHistory.shift();
-
-  if(last.w) state.bankroll -= last.b*2;
-  else state.bankroll += last.b;
-
-  state.index = last.w ? 0 : Math.max(state.index-1,0);
+  var last=state.betHistory.shift();
+  if(last.w) state.bankroll-=last.b*2;
+  else state.bankroll+=last.b;
+  state.index=last.w?0:Math.max(state.index-1,0);
   state.history.pop();
-  state.clicks = Math.max(state.clicks-1,0);
-  state.bets = Math.max(state.bets-1,0);
-  state.lastPrediction = predict();
-
-  save();
-  updateUI();
+  state.clicks=Math.max(state.clicks-1,0);
+  state.bets=Math.max(state.bets-1,0);
+  state.lastPrediction=combinedPredict();
+  save(); updateUI();
 }
 
+/* ================= RESET ==================== */
 function resetAll(){
-  var keep = state.manualBets.slice();
-  state = {
-    history: [],
-    transitions: {},
-    lastPrediction: null,
-    bankroll: 1000,
-    clicks: 0,
-    bets: 0,
-    manualBets: keep,
-    index: 0,
-    betHistory: []
+  var keep=state.manualBets.slice();
+  state={
+    history:[], transitions:{}, lastPrediction:null,
+    bankroll:1000, clicks:0, bets:0,
+    manualBets:keep, index:0, betHistory:[]
   };
-  save();
-  updateUI();
+  save(); updateUI();
 }
 
+/* ================= UI ======================= */
 function updateUI(){
   $("pred").innerHTML = state.lastPrediction ?? "—";
-  var c = confidence();
+  var c=confidence();
   $("conf").innerHTML = c ? "Confidence "+c+"%" : "Confidence —";
-  $("confLimitVal").innerHTML = $("confLimit").value + "%";
-  $("nextBet").innerHTML = canBet() ? state.manualBets[state.index] : "—";
+  $("confLimitVal").innerHTML = $("confLimit").value+"%";
+  $("nextBet").innerHTML = canBet()?state.manualBets[state.index]:"—";
   $("bankroll").innerHTML = state.bankroll.toFixed(2);
   $("clicks").innerHTML = state.clicks;
   $("bets").innerHTML = state.bets;
   $("step").innerHTML = state.index+1;
 
-  var grid = $("betGrid");
+  var grid=$("betGrid");
   if(!grid.children.length){
     for(let i=0;i<20;i++){
       let inp=document.createElement("input");
@@ -293,7 +269,7 @@ function updateUI(){
     }
   }
   for(let i=0;i<20;i++)
-    grid.children[i].className = (i===state.index)?"active":"";
+    grid.children[i].className=(i===state.index)?"active":"";
 
   var h="<tr><th>#</th><th>Enn</th><th>Tulemus</th><th>Panus</th><th>BR</th></tr>";
   state.betHistory.forEach((x,i)=>{
@@ -301,7 +277,7 @@ function updateUI(){
        "</td><td>"+x.p+"→"+x.r+"</td><td>"+(x.w?"WIN":"LOSS")+
        "</td><td>"+x.b+"</td><td>"+x.br.toFixed(2)+"</td></tr>";
   });
-  $("history").innerHTML = h;
+  $("history").innerHTML=h;
 }
 
 updateUI();
