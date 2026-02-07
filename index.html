@@ -177,21 +177,41 @@ function freqPredict(){
   return c.indexOf(max);
 }
 
+/* ============== TREND / ANTI-STREAK ================= */
+function trendPredict(){
+  if(state.history.length < 2) return null;
+
+  var a = state.history[state.history.length - 1];
+  var b = state.history[state.history.length - 2];
+
+  // kui kordub → murra
+  if(a === b){
+    return (a + 1) % 4;
+  }
+
+  // kui vaheldub → jätka
+  return a;
+}
+
 /* ========== KOMBINATSIOON =============== */
 function combinedPredict(){
-  var votes=[0,0,0,0];
+  var votes = [0,0,0,0];
 
   var wM = $("wMarkov").value / 100;
   var wF = $("wFreq").value / 100;
+  var wT = 1.0; // trendi fikseeritud kaal (turvaline)
 
   var m = predict();
-  if(m!==null) votes[m]+=wM;
+  if(m !== null) votes[m] += wM;
 
   var f = freqPredict();
-  if(f!==null) votes[f]+=wF;
+  if(f !== null) votes[f] += wF;
 
-  var best=votes.indexOf(Math.max(...votes));
-  return votes[best]>0 ? best : null;
+  var t = trendPredict();
+  if(t !== null) votes[t] += wT;
+
+  var best = votes.indexOf(Math.max(...votes));
+  return votes[best] > 0 ? best : null;
 }
 
 /* ============== BET CONTROL ============= */
