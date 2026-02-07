@@ -13,16 +13,12 @@ body{font-family:-apple-system;background:#020617;color:white;padding:14px}
 .card{background:#0f172a;padding:14px;border-radius:14px;margin-top:12px}
 .big{font-size:34px;font-weight:bold;text-align:center}
 .small{font-size:13px;opacity:.7;text-align:center}
-input[type=range]{width:100%}
-.reset{width:100%;padding:12px;border-radius:10px;border:none;margin-top:6px}
-.red{background:#7c2d12;color:white}
-.gray{background:#334155;color:white}
 .grid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
-input[type=number]{padding:6px;border-radius:6px;border:none}
+input{padding:6px;border-radius:6px;border:none}
 .active{outline:2px solid #22c55e}
-.green{color:#22c55e}.redtxt{color:#ef4444}
 table{width:100%;font-size:12px}
 td,th{text-align:center;padding:4px}
+.green{color:#22c55e}.red{color:#ef4444}
 </style>
 </head>
 
@@ -40,29 +36,14 @@ td,th{text-align:center;padding:4px}
 <div class="card">
 <div class="small">🔮 JÄRGMINE ENNUSTUS</div>
 <div class="big" id="pred">—</div>
-<div class="small" id="conf">Confidence —</div>
 </div>
 
 <div class="card">
-<div class="small">🎛 PRESETID</div>
-<button class="reset gray" onclick="preset('con')">Conservative</button>
-<button class="reset gray" onclick="preset('bal')">Balanced</button>
-<button class="reset gray" onclick="preset('agg')">Aggressive</button>
+<div class="small">⚖️ KAALUD</div>
+Markov <input type="range" min="0" max="200" value="100" id="wM"><br>
+Sagedus <input type="range" min="0" max="200" value="60" id="wF"><br>
+Trend <input type="range" min="0" max="200" value="40" id="wT">
 </div>
-
-<div class="card">
-<div class="small">⚖️ MUDELITE KAALUD</div>
-Markov <input type="range" min="0" max="200" value="100" id="wM"><b id="vM">1.00</b><br>
-Sagedus <input type="range" min="0" max="200" value="60" id="wF"><b id="vF">0.60</b><br>
-Trend <input type="range" min="0" max="200" value="40" id="wT"><b id="vT">0.40</b>
-</div>
-
-<div class="card">
-<div class="small">💰 JÄRGMINE PANUS</div>
-<div class="big" id="nextBet">—</div>
-</div>
-
-<button class="reset red" onclick="resetAll()">RESET</button>
 
 <div class="card">
 <div class="small">✍️ MANUAALSED PANUSED</div>
@@ -70,7 +51,7 @@ Trend <input type="range" min="0" max="200" value="40" id="wT"><b id="vT">0.40</
 </div>
 
 <div class="card">
-Bankroll: <b id="bankroll">0</b><br>
+Bankroll: <b id="bankroll">1000</b><br>
 Panuseid: <b id="bets">0</b><br>
 Aste: <b id="step">1</b>
 </div>
@@ -83,109 +64,94 @@ Aste: <b id="step">1</b>
 <script>
 function $(i){return document.getElementById(i)}
 
-var state=JSON.parse(localStorage.getItem("mk"))||{
+let state=JSON.parse(localStorage.getItem("mk"))||{
 hist:[],trans:{},last:null,bank:1000,bets:0,
-manual:Array(20).fill(1),idx:0,log:[],
-perf:{m:{t:0,h:0},f:{t:0,h:0},t:{t:0,h:0}}
+manual:Array(20).fill(1),idx:0,log:[]
 }
 
 function save(){localStorage.setItem("mk",JSON.stringify(state))}
 
-function markovKey(){return state.hist.length>=2?state.hist.at(-2)+","+state.hist.at(-1):null}
-
-function mPredict(){
-let k=markovKey(),r=state.trans[k];if(!r)return null
-return Object.keys(r).reduce((a,b)=>r[a]>r[b]?a:b)
+function markovKey(){
+return state.hist.length>=2
+? state.hist[state.hist.length-2]+","+state.hist[state.hist.length-1]
+: null
 }
 
-function fPredict(){
-let c=[0,0,0,0];state.hist.forEach(n=>c[n]++)
-let m=Math.max(...c);return m?c.indexOf(m):null
+function markovPredict(){
+let k=markovKey(),r=state.trans[k]
+if(!r)return null
+let best=null,max=-1
+for(let n in r){if(r[n]>max){max=r[n];best=+n}}
+return best
 }
 
-function tPredict(){
+function freqPredict(){
+let c=[0,0,0,0]
+state.hist.forEach(n=>c[n]++)
+let m=Math.max(...c)
+return m?c.indexOf(m):null
+}
+
+function trendPredict(){
 if(state.hist.length<2)return null
-let a=state.hist.at(-1),b=state.hist.at(-2)
-if(a===b) return [0,1,2,3].filter(x=>x!==a)[Math.floor(Math.random()*3)]
-return a
+let a=state.hist[state.hist.length-1]
+let b=state.hist[state.hist.length-2]
+return a===b ? (a+1)%4 : a
 }
 
-function combined(){
+function combinedPredict(){
 let v=[0,0,0,0]
 let wm=wM.value/100,wf=wF.value/100,wt=wT.value/100
-
-let m=mPredict();if(m!=null){v[m]+=wm;state.perf.m.t++}
-let f=fPredict();if(f!=null){v[f]+=wf;state.perf.f.t++}
-let t=tPredict();if(t!=null){v[t]+=wt;state.perf.t.t++}
-
+let m=markovPredict(); if(m!==null)v[m]+=wm
+let f=freqPredict();   if(f!==null)v[f]+=wf
+let t=trendPredict();  if(t!==null)v[t]+=wt
 return v.indexOf(Math.max(...v))
-}
-
-function autoLearn(win){
-["m","f","t"].forEach(k=>{
-if(state.lastModels?.[k]!==undefined){
-if(state.lastModels[k]==state.last) win && state.perf[k].h++
-let p=state.perf[k]
-let acc=p.t? p.h/p.t:0.5
-let el=$("w"+k.toUpperCase())
-el.value=Math.max(10,Math.min(200,acc*200))
-}
-})
 }
 
 function inputNum(n){
 let bet=state.manual[state.idx]
-if(state.last!=null){
+
+if(state.last!==null){
 state.bets++
-let win=n==state.last
-if(win){state.bank+=bet*2;state.idx=0}else{state.bank-=bet;if(state.idx<19)state.idx++}
+let win=n===state.last
+state.bank += win ? bet*2 : -bet
+state.idx = win ? 0 : Math.min(19,state.idx+1)
 state.log.unshift({p:state.last,r:n,b:bet,w:win,br:state.bank})
 if(state.log.length>500)state.log.pop()
-autoLearn(win)
 }
 
 let k=markovKey()
-if(k){state.trans[k]=state.trans[k]||{};state.trans[k][n]=(state.trans[k][n]||0)+1}
-state.hist.push(n);if(state.hist.length>3)state.hist.shift()
-
-state.lastModels={m:mPredict(),f:fPredict(),t:tPredict()}
-state.last=combined()
-save();ui()
+if(k){
+state.trans[k]=state.trans[k]||{}
+state.trans[k][n]=(state.trans[k][n]||0)+1
 }
 
-function preset(p){
-if(p=="con"){wM.value=80;wF.value=120;wT.value=20}
-if(p=="bal"){wM.value=100;wF.value=60;wT.value=40}
-if(p=="agg"){wM.value=140;wF.value=20;wT.value=80}
-ui()
-}
+state.hist.push(n)
+if(state.hist.length>3)state.hist.shift()
 
-function resetAll(){
-let m=state.manual.slice()
-state={hist:[],trans:{},last:null,bank:1000,bets:0,manual:m,idx:0,log:[],perf:{m:{t:0,h:0},f:{t:0,h:0},t:{t:0,h:0}}}
+state.last=combinedPredict()
 save();ui()
 }
 
 function ui(){
 pred.innerHTML=state.last??"—"
-bankroll.innerHTML=state.bank.toFixed(2)
+bankroll.innerHTML=state.bank
 bets.innerHTML=state.bets
 step.innerHTML=state.idx+1
-nextBet.innerHTML=state.manual[state.idx]
-vM.innerHTML=(wM.value/100).toFixed(2)
-vF.innerHTML=(wF.value/100).toFixed(2)
-vT.innerHTML=(wT.value/100).toFixed(2)
 
 let g=betGrid
-if(!g.children.length)for(let i=0;i<20;i++){
+if(!g.children.length){
+for(let i=0;i<20;i++){
 let inp=document.createElement("input")
-inp.type="number";inp.value=state.manual[i]
+inp.type="number"
+inp.value=state.manual[i]
 inp.oninput=()=>{state.manual[i]=+inp.value||0;save()}
 g.appendChild(inp)
 }
-[...g.children].forEach((x,i)=>x.className=i==state.idx?"active":"")
-history.innerHTML="<tr><th>#</th><th>→</th><th>R</th><th>B</th><th>BR</th></tr>"+
-state.log.map((x,i)=>`<tr class='${x.w?"green":"redtxt"}'><td>${state.log.length-i}</td><td>${x.p}</td><td>${x.w?"W":"L"}</td><td>${x.b}</td><td>${x.br}</td></tr>`).join("")
+}
+[...g.children].forEach((x,i)=>x.className=i===state.idx?"active":"")
+history.innerHTML="<tr><th>#</th><th>P</th><th>R</th><th>B</th><th>BR</th></tr>"+
+state.log.map((x,i)=>`<tr class='${x.w?"green":"red"}'><td>${state.log.length-i}</td><td>${x.p}</td><td>${x.w?"W":"L"}</td><td>${x.b}</td><td>${x.br}</td></tr>`).join("")
 }
 
 ui()
