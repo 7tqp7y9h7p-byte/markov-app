@@ -199,7 +199,7 @@ function combinedPredict(){
 
   var wM = $("wMarkov").value / 100;
   var wF = $("wFreq").value / 100;
-  var wT = 1.0; // trendi fikseeritud kaal (turvaline)
+  var wT = 0.7; // trendi fikseeritud kaal (turvaline)
 
   var m = predict();
   if(m !== null) votes[m] += wM;
