@@ -82,6 +82,11 @@ td,th{padding:4px; text-align:center;}
 </div>
 
 <div class="card">
+  <div class="small">💰 JÄRGMINE PANUS</div>
+  <div class="big" id="nextBet">—</div>
+</div>
+
+<div class="card">
   <div class="small">⚖️ MUDELITE KAALUD</div>
 
   <div class="small">Markov</div>
@@ -97,11 +102,6 @@ td,th{padding:4px; text-align:center;}
   <div class="small">🎚 Min confidence panustamiseks</div>
   <input type="range" min="0" max="100" value="0" id="confLimit">
   <div class="small">Valitud: <b id="confLimitVal">0%</b></div>
-</div>
-
-<div class="card">
-  <div class="small">💰 JÄRGMINE PANUS</div>
-  <div class="big" id="nextBet">—</div>
 </div>
 
 <button class="reset red" onclick="resetAll()">🔄 RESET</button>
@@ -195,20 +195,27 @@ function trendPredict(){
 
 /* ========== KOMBINATSIOON =============== */
 function combinedPredict(){
-  var votes = [0,0,0,0];
+  var votes=[0,0,0,0];
 
   var wM = $("wMarkov").value / 100;
   var wF = $("wFreq").value / 100;
-  var wT = 0.7; // trendi fikseeritud kaal (turvaline)
+
+  // 👉 SIIN ON ÕIGE KOHT
+  var c = confidence() || 0;
+  var wT = c < 40 ? 0.5 : 0.2;
 
   var m = predict();
-  if(m !== null) votes[m] += wM;
+  if(m!==null) votes[m] += wM;
 
   var f = freqPredict();
-  if(f !== null) votes[f] += wF;
+  if(f!==null) votes[f] += wF;
 
-  var t = trendPredict();
-  if(t !== null) votes[t] += wT;
+  // 👉 TREND / ANTI-STREAK MUDEL
+  if(state.history.length >= 2){
+    let last = state.history[state.history.length-1];
+    let anti = (last + 1) % 4;
+    votes[anti] += wT;
+  }
 
   var best = votes.indexOf(Math.max(...votes));
   return votes[best] > 0 ? best : null;
