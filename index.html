@@ -1,330 +1,733 @@
 <!DOCTYPE html>
+
 <html lang="et">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Markov Ennustaja</title>
-
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Mäng</title>
 <style>
+@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@300;400;700&family=DM+Mono:wght@400;500&display=swap');
+
+:root {
+–bg: #0c0c0c;
+–s1: #141414;
+–s2: #1c1c1c;
+–border: #2a2a2a;
+–text: #e8e8e8;
+–muted: #555;
+–green: #22c55e;
+–red: #ef4444;
+–yellow: #eab308;
+–blue: #3b82f6;
+}
+
+- { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
 body {
-  font-family: -apple-system, BlinkMacSystemFont;
-  background: #020617;
-  color: white;
-  padding: 14px;
+background: var(–bg);
+color: var(–text);
+font-family: ‘DM Mono’, monospace;
+min-height: 100vh;
+display: flex;
+flex-direction: column;
+align-items: center;
+padding: 20px 16px 40px;
+max-width: 420px;
+margin: 0 auto;
 }
 
-.btn-row { display:flex; gap:8px; }
-.btn-row button {
-  flex:1; padding:18px; font-size:26px;
-  border-radius:14px; border:none; color:white;
+/* Header */
+.header {
+width: 100%;
+display: flex;
+justify-content: space-between;
+align-items: baseline;
+margin-bottom: 20px;
+}
+.title {
+font-family: ‘Oswald’, sans-serif;
+font-size: 28px;
+font-weight: 700;
+letter-spacing: 0.05em;
+color: #fff;
+}
+.reset-btn {
+font-family: ‘DM Mono’, monospace;
+font-size: 11px;
+color: var(–muted);
+background: none;
+border: 1px solid var(–border);
+border-radius: 6px;
+padding: 5px 10px;
+cursor: pointer;
+}
+.reset-btn:hover { color: var(–red); border-color: var(–red); }
+
+/* Bankroll */
+.bankroll-card {
+width: 100%;
+background: var(–s1);
+border: 1px solid var(–border);
+border-radius: 14px;
+padding: 16px 20px;
+margin-bottom: 14px;
+display: flex;
+justify-content: space-between;
+align-items: center;
+}
+.bank-val {
+font-family: ‘Oswald’, sans-serif;
+font-size: 36px;
+font-weight: 700;
+color: #fff;
+transition: color 0.3s;
+}
+.bank-val.up { color: var(–green); }
+.bank-val.down { color: var(–red); }
+.bank-meta { text-align: right; }
+.bank-label { font-size: 10px; color: var(–muted); text-transform: uppercase; letter-spacing: 0.1em; }
+.bank-pnl { font-size: 13px; margin-top: 2px; }
+
+/* Fibonacci indicator */
+.fib-card {
+width: 100%;
+background: var(–s1);
+border: 1px solid var(–border);
+border-radius: 14px;
+padding: 14px 18px;
+margin-bottom: 14px;
+}
+.fib-label { font-size: 10px; color: var(–muted); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 8px; }
+.fib-row { display: flex; gap: 5px; align-items: center; flex-wrap: wrap; }
+.fib-step {
+width: 28px; height: 28px;
+border-radius: 6px;
+border: 1px solid var(–border);
+display: flex; align-items: center; justify-content: center;
+font-size: 10px;
+color: var(–muted);
+transition: all 0.2s;
+}
+.fib-step.active {
+background: var(–yellow);
+border-color: var(–yellow);
+color: #000;
+font-weight: 700;
+transform: scale(1.1);
+}
+.fib-step.past {
+background: var(–s2);
+color: var(–text);
+}
+.fib-bet { font-size: 11px; color: var(–muted); margin-left: auto; }
+.fib-bet b { color: var(–yellow); font-size: 14px; }
+
+/* Prediction card */
+.pred-card {
+width: 100%;
+background: var(–s1);
+border: 1px solid var(–border);
+border-radius: 14px;
+padding: 18px 20px;
+margin-bottom: 14px;
+height: 90px;
+display: flex;
+align-items: center;
+justify-content: space-between;
+overflow: hidden;
+}
+.pred-left { display: flex; flex-direction: column; gap: 4px; }
+.pred-label { font-size: 10px; color: var(–muted); text-transform: uppercase; letter-spacing: 0.1em; }
+.pred-num {
+font-family: ‘Oswald’, sans-serif;
+font-size: 36px;
+font-weight: 700;
+line-height: 1;
+color: var(–yellow);
+transition: all 0.2s;
+}
+.pred-num.none { color: var(–muted); font-size: 18px; }
+.pred-pattern { font-size: 10px; color: var(–muted); margin-top: 2px; }
+
+.pred-right { text-align: right; }
+.bet-label { font-size: 10px; color: var(–muted); text-transform: uppercase; letter-spacing: 0.1em; }
+.bet-amount {
+font-family: ‘Oswald’, sans-serif;
+font-size: 18px;
+font-weight: 700;
+color: #fff;
+}
+.no-bet { font-size: 12px; color: var(–muted); }
+
+/* Result flash */
+.result-flash {
+width: 100%;
+border-radius: 8px;
+padding: 6px 12px;
+font-family: ‘Oswald’, sans-serif;
+font-size: 14px;
+font-weight: 700;
+text-align: center;
+margin-bottom: 10px;
+opacity: 0;
+transition: opacity 0.15s;
+letter-spacing: 0.05em;
+height: 30px;
+display: flex;
+align-items: center;
+justify-content: center;
+}
+.result-flash.show { opacity: 1; }
+.result-flash.win { background: #0f2d1a; color: var(–green); border: 1px solid var(–green); }
+.result-flash.loss { background: #2d0f0f; color: var(–red); border: 1px solid var(–red); }
+
+/* Number buttons */
+.num-grid {
+display: grid;
+grid-template-columns: repeat(3, 1fr);
+gap: 10px;
+width: 100%;
+margin-bottom: 14px;
+}
+.num-btn-0 {
+grid-column: 1 / -1;
+padding: 12px 0;
+font-size: 24px;
+}
+.num-btn {
+font-family: ‘Oswald’, sans-serif;
+font-size: 32px;
+font-weight: 700;
+background: var(–s1);
+border: 1px solid var(–border);
+border-radius: 14px;
+color: var(–text);
+padding: 20px 0;
+cursor: pointer;
+transition: all 0.1s;
+letter-spacing: 0.05em;
+}
+.num-btn:active { transform: scale(0.95); background: var(–s2); }
+.num-btn:hover { border-color: #444; }
+
+/* History */
+.hist-card {
+width: 100%;
+background: var(–s1);
+border: 1px solid var(–border);
+border-radius: 14px;
+padding: 14px 18px;
 }
 
-.btn-0{background:#16a34a;}
-.btn-1{background:#2563eb;}
-.btn-2{background:#f59e0b;}
-.btn-3{background:#dc2626;}
-
-.card {
-  background:#0f172a;
-  padding:14px;
-  border-radius:14px;
-  margin-top:12px;
+.bet-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+.bet-table td, .bet-table th {
+padding: 5px 8px;
+border-bottom: 1px solid var(–border);
+text-align: center;
 }
-
-.big { font-size:34px; font-weight:bold; text-align:center; }
-.small { font-size:13px; opacity:.7; text-align:center; }
-
-.reset {
-  width:100%; padding:14px; font-size:18px;
-  border-radius:12px; border:none; color:white;
-  margin-top:8px;
+.bet-table th { color: var(–muted); font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 400; }
+.bet-table tr:last-child td { border-bottom: none; }
+.bet-table tr.active-row td { color: var(–yellow); font-weight: 700; background: rgba(234,179,8,0.08); border-radius: 4px; }
+.bet-table .step-num { color: var(–muted); }
+.bet-table .fib-val { color: var(–text); }
+.bet-table .bet-val { color: var(–text); }
+.bet-table .win-need { color: var(–muted); font-size: 10px; }
+.hist-label { font-size: 10px; color: var(–muted); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 10px; }
+.hist-rows { display: flex; flex-direction: column; gap: 4px; max-height: 220px; overflow-y: auto; }
+.hist-row {
+display: flex;
+align-items: center;
+gap: 8px;
+font-size: 11px;
+padding: 5px 0;
+border-bottom: 1px solid var(–border);
 }
-.reset.red{background:#7c2d12;}
-.reset.gray{background:#334155;}
+.hist-row:last-child { border-bottom: none; }
+.hist-idx { color: var(–muted); width: 28px; flex-shrink: 0; }
+.hist-pred { width: 20px; text-align: center; font-weight: 700; }
+.hist-arrow { color: var(–muted); }
+.hist-actual { width: 20px; text-align: center; font-weight: 700; }
+.hist-result { margin-left: auto; font-weight: 700; }
+.hist-bank { color: var(–muted); font-size: 10px; margin-left: 6px; }
+.win-color { color: var(–green); }
+.loss-color { color: var(–red); }
+.no-bet-color { color: var(–muted); }
 
-.grid {
-  display:grid;
-  grid-template-columns:repeat(5,1fr);
-  gap:6px;
+/* Stats row */
+.stats-row {
+width: 100%;
+display: grid;
+grid-template-columns: repeat(3,1fr);
+gap: 8px;
+margin-bottom: 14px;
 }
-
-input[type=number]{
-  width:100%; padding:8px;
-  border-radius:8px; border:none;
+.stat-box {
+background: var(–s1);
+border: 1px solid var(–border);
+border-radius: 10px;
+padding: 10px;
+text-align: center;
 }
-
-input[type=range]{width:100%;}
-
-.active{outline:2px solid #22c55e;}
-.green{color:#22c55e;}
-.redtxt{color:#ef4444;}
-
-table{width:100%; font-size:12px;}
-td,th{padding:4px; text-align:center;}
+.stat-val { font-family: ‘Oswald’, sans-serif; font-size: 20px; font-weight: 700; display: block; }
+.stat-lbl { font-size: 9px; color: var(–muted); text-transform: uppercase; letter-spacing: 0.08em; margin-top: 2px; display: block; }
 </style>
-</head>
 
+</head>
 <body>
 
-<h2>📊 Markov Ennustaja</h2>
-
-<div class="btn-row">
-  <button class="btn-0" onclick="inputNum(0)">0</button>
-  <button class="btn-1" onclick="inputNum(1)">1</button>
-  <button class="btn-2" onclick="inputNum(2)">2</button>
-  <button class="btn-3" onclick="inputNum(3)">3</button>
+<div class="header">
+  <div class="title">MÄNG</div>
+  <div style="display:flex;gap:8px">
+    <button class="reset-btn" onclick="undoLast()" id="undoBtn">↩ Undo</button>
+    <button class="reset-btn" onclick="resetGame()">↺ Reset</button>
+    <button class="reset-btn" onclick="resetBets()" style="color:var(--acc2);border-color:var(--acc2)">$ Panused</button>
+  </div>
 </div>
 
-<div class="card">
-  <div class="small">🔮 JÄRGMINE ENNUSTUS</div>
-  <div class="big" id="pred">—</div>
-  <div class="small" id="conf">Confidence —</div>
+<!-- Bankroll -->
+
+<div class="bankroll-card">
+  <div>
+    <div class="bank-label">Bankroll</div>
+    <div class="bank-val" id="bankVal">2000</div>
+  </div>
+  <div class="bank-meta">
+    <div class="bank-label">P&amp;L</div>
+    <div class="bank-pnl" id="pnlVal">+0</div>
+  </div>
 </div>
 
-<div class="card">
-  <div class="small">💰 JÄRGMINE PANUS</div>
-  <div class="big" id="nextBet">—</div>
+<!-- Fibonacci -->
+
+<div class="fib-card">
+  <div class="fib-label">Panuste jada</div>
+  <div class="fib-row" id="fibRow">
+    <!-- filled by JS -->
+    <span class="fib-bet">Panus: <b id="currentBet">10</b></span>
+  </div>
 </div>
 
-<div class="card">
-  Bankroll: <b id="bankroll">0</b><br>
-  Vajutusi: <b id="clicks">0</b><br>
-  Panuseid: <b id="bets">0</b><br>
-  Aktiivne aste: <b id="step">1</b>
+<!-- Prediction -->
+
+<div class="pred-card">
+  <div class="pred-left">
+    <div class="pred-label">Ennustus</div>
+    <div class="pred-num none" id="predNum">—</div>
+    <div class="pred-pattern" id="predPattern"></div>
+  </div>
+  <div class="pred-right" id="predRight">
+    <div class="no-bet" id="noBetMsg">Ootan andmeid...</div>
+  </div>
 </div>
 
-<div class="card">
-  <div class="small">⚖️ MUDELITE KAALUD</div>
+<!-- Result flash -->
 
-  <div class="small">Markov</div>
-  <input type="range" min="0" max="200" value="100" id="wMarkov">
-  <div class="small"><b id="wMarkovVal">1.00</b></div>
+<div class="result-flash" id="resultFlash"></div>
 
-  <div class="small">Sagedus</div>
-  <input type="range" min="0" max="200" value="50" id="wFreq">
-  <div class="small"><b id="wFreqVal">0.50</b></div>
+<!-- Stats -->
+
+<div class="stats-row">
+  <div class="stat-box">
+    <span class="stat-val win-color" id="statWins">0</span>
+    <span class="stat-lbl">Võidud</span>
+  </div>
+  <div class="stat-box">
+    <span class="stat-val loss-color" id="statLoss">0</span>
+    <span class="stat-lbl">Kaotused</span>
+  </div>
+  <div class="stat-box">
+    <span class="stat-val" id="statAcc">—</span>
+    <span class="stat-lbl">Täpsus</span>
+  </div>
 </div>
 
-<div class="card">
-  <div class="small">🎚 Min confidence panustamiseks</div>
-  <input type="range" min="0" max="100" value="0" id="confLimit">
-  <div class="small">Valitud: <b id="confLimitVal">0%</b></div>
+<!-- Number buttons -->
+
+<div class="num-grid">
+  <button class="num-btn" onclick="inputNum(1)">1</button>
+  <button class="num-btn" onclick="inputNum(2)">2</button>
+  <button class="num-btn" onclick="inputNum(3)">3</button>
+  <button class="num-btn num-btn-0" onclick="inputNum(0)" style="color:var(--muted)">0</button>
 </div>
 
-<button class="reset red" onclick="resetAll()">🔄 RESET</button>
-<button class="reset gray" onclick="undo()">↩️ UNDO</button>
+<!-- Bet table -->
 
-<div class="card">
-  <div class="small">✍️ MANUAALSED PANUSED (20)</div>
-  <div class="grid" id="betGrid"></div>
+<div class="hist-card" style="margin-bottom:14px">
+  <div class="hist-label">Panuste tabel (Fibonacci 20 astet)</div>
+  <div id="betTable"></div>
 </div>
 
-<div class="card">
-  <b>📜 Panuste ajalugu</b>
-  <table id="history"></table>
+<!-- History -->
+
+<div class="hist-card">
+  <div class="hist-label">Ajalugu</div>
+  <div class="hist-rows" id="histRows">
+    <div style="font-size:11px;color:var(--muted);text-align:center;padding:10px">Vajuta numbreid alustamiseks</div>
+  </div>
 </div>
 
 <script>
-function $(id){ return document.getElementById(id); }
+var FIB = [1,1,2,3,5,8,13,21,34,55,89,144,233,377,610,987,1597];
+var START_BANK = 2000;
+var MAX_STREAK = 15;
 
-var state = JSON.parse(localStorage.getItem("mk_state")) || {
-  history: [],
-  transitions: {},
-  lastPrediction: null,
-  bankroll: 1000,
-  clicks: 0,
-  bets: 0,
-  manualBets: Array(20).fill(1),
-  index: 0,
-  betHistory: []
-};
+var DEFAULT_BETS = [0.1,0.2,0.3,0.4,0.7,1,2,3,4,6,9,15,25,35,55,80,150,250,350,550];
 
-function save(){ localStorage.setItem("mk_state", JSON.stringify(state)); }
+var PATTERNS = [];
+for(var a=1;a<=3;a++) for(var b=1;b<=3;b++) PATTERNS.push([a,b]);
+for(var a=1;a<=3;a++) for(var b=1;b<=3;b++) for(var c=1;c<=3;c++) PATTERNS.push([a,b,c]);
+for(var a=1;a<=3;a++) for(var b=1;b<=3;b++) for(var c=1;c<=3;c++) for(var d=1;d<=3;d++) PATTERNS.push([a,b,c,d]);
 
-/* ================= MARKOV ================= */
-function markovKey(){
-  if(state.history.length < 2) return null;
-  return state.history[state.history.length-2] + "," +
-         state.history[state.history.length-1];
+function makePatternState(){
+  var ps = {};
+  PATTERNS.forEach(function(p){ ps[p.join(',')] = {streak:0,bets:0,wins:0,maxStreak:0,next:{0:0,1:0,2:0,3:0}}; });
+  return ps;
 }
 
-function predict(){
-  var key = markovKey();
-  var r = state.transitions[key];
-  if(!r) return null;
-  var best=null,max=-1;
-  for(var n in r){
-    if(r[n]>max){ max=r[n]; best=n; }
-  }
-  return best!==null ? Number(best) : null;
+function defaultState(){
+  return {
+    bank: START_BANK,
+    fibStep: 0,
+    history: [],
+    betHistory: [],
+    patternState: makePatternState(),
+    totalBets: 0,
+    totalWins: 0,
+    lostSum: 0,
+    manualBets: DEFAULT_BETS.slice()
+  };
 }
 
-function confidence(){
-  var key = markovKey();
-  var r = state.transitions[key];
-  if(!r) return null;
-  var sum=0,max=0;
-  for(var n in r){ sum+=r[n]; if(r[n]>max) max=r[n]; }
-  return sum ? Math.round(max/sum*100) : null;
+var state;
+try {
+  state = JSON.parse(localStorage.getItem('mg_state'));
+  if(!state || !state.patternState) state = defaultState();
+  if(!state.manualBets) state.manualBets = DEFAULT_BETS.slice();
+  if(state.lostSum === undefined) state.lostSum = 0;
+} catch(e){ state = defaultState(); }
+
+function save(){ try{ localStorage.setItem('mg_state', JSON.stringify(state)); }catch(e){} }
+
+/* ===== PATTERN LOGIC ===== */
+function getActivePatterns(history){
+  var active = [];
+  PATTERNS.forEach(function(p){
+    var len = p.length;
+    if(history.length < len) return;
+    var match = true;
+    for(var j=0;j<len;j++) if(history[history.length-len+j] !== p[j]){ match=false; break; }
+    if(match) active.push(p.join(','));
+  });
+  return active;
 }
 
-/* ============== SAGEDUS ================= */
-function freqPredict(){
-  var c=[0,0,0,0];
-  state.history.forEach(n=>c[n]++);
-  var max=Math.max(...c);
-  if(max===0) return null;
-  return c.indexOf(max);
+function getBestPattern(activeKeys){
+  // Find max streak among eligible patterns
+  var maxSt = 0;
+  activeKeys.forEach(function(k){
+    var s = state.patternState[k];
+    if(s.bets >= 5 && s.maxStreak <= MAX_STREAK && s.streak > maxSt) maxSt = s.streak;
+  });
+  if(maxSt === 0) return null;
+  // Count how many share the max streak
+  var tied = activeKeys.filter(function(k){
+    var s = state.patternState[k];
+    return s.bets >= 5 && s.maxStreak <= MAX_STREAK && s.streak === maxSt;
+  });
+  // Only bet if exactly one pattern leads
+  if(tied.length === 1) return tied[0];
+  return null; // tie — wait
 }
 
-/* ============== TREND / ANTI-STREAK ================= */
-function trendPredict(){
-  if(state.history.length < 2) return null;
-
-  var a = state.history[state.history.length - 1];
-  var b = state.history[state.history.length - 2];
-
-  // kui kordub → murra
-  if(a === b){
-    return (a + 1) % 4;
-  }
-
-  // kui vaheldub → jätka
-  return a;
+function getPatternPred(key){
+  var nc = state.patternState[key].next;
+  var tot = nc[1]+nc[2]+nc[3]; // only 1,2,3
+  if(tot === 0) return null;
+  return [1,2,3].reduce(function(a,b){ return nc[a]>nc[b]?a:b; });
 }
 
-/* ========== KOMBINATSIOON =============== */
-function combinedPredict(){
-  var votes=[0,0,0,0];
-
-  var wM = $("wMarkov").value / 100;
-  var wF = $("wFreq").value / 100;
-
-  // 👉 SIIN ON ÕIGE KOHT
-  var c = confidence() || 0;
-  var wT = c < 40 ? 0.5 : 0.2;
-
-  var m = predict();
-  if(m!==null) votes[m] += wM;
-
-  var f = freqPredict();
-  if(f!==null) votes[f] += wF;
-
-  // 👉 TREND / ANTI-STREAK MUDEL
-  if(state.history.length >= 2){
-    let last = state.history[state.history.length-1];
-    let anti = (last + 1) % 4;
-    votes[anti] += wT;
-  }
-
-  var best = votes.indexOf(Math.max(...votes));
-  return votes[best] > 0 ? best : null;
+function computeNext(){
+  var active = getActivePatterns(state.history);
+  var bestKey = getBestPattern(active);
+  if(!bestKey) return {pred:null, bet:0, key:null, streak:0};
+  var pred = getPatternPred(bestKey);
+  if(!pred) return {pred:null, bet:0, key:null, streak:0};
+  var step = Math.min(state.fibStep, state.manualBets.length-1);
+  var bet = state.manualBets[step];
+  return {pred:pred, bet:bet, key:bestKey, streak:state.patternState[bestKey].streak};
 }
 
-/* ============== BET CONTROL ============= */
-function canBet(){
-  var c=confidence();
-  var limit=Number($("confLimit").value);
-  if(c===null) return false;
-  return c>=limit;
-}
-
-/* ============== INPUT =================== */
+/* ===== INPUT ===== */
 function inputNum(n){
-  state.clicks++;
+  var next = computeNext();
+  var pred = next.pred;
+  var bet = next.bet;
+  var betMade = pred !== null;
+  var win = betMade && (pred === n);
+  var lostSumBefore = state.lostSum;
 
-  var bet=state.manualBets[state.index]||0;
-
-  if(state.lastPrediction!==null && canBet()){
-    state.bets++;
-    var win=(n===state.lastPrediction);
+  if(betMade){
+    state.totalBets++;
+    state.bank -= bet; // panus lahutatakse alati
     if(win){
-      state.bankroll+=bet*2;
-      state.index=0;
-    }else{
-      state.bankroll-=bet;
-      if(state.index<19) state.index++;
+      state.bank += bet * 3; // võidu korral saad tagasi 3x panuse
+      state.totalWins++;
+      state.lostSum = 0;
+      state.fibStep = 0;
+    } else {
+      state.lostSum += bet;
+      state.fibStep = Math.min(state.fibStep + 1, state.manualBets.length - 1);
     }
-    state.betHistory.unshift({p:state.lastPrediction,r:n,b:bet,w:win,br:state.bankroll});
-    if(state.betHistory.length>500) state.betHistory.pop();
   }
 
-  var key=markovKey();
-  if(key){
-    state.transitions[key]=state.transitions[key]||{};
-    state.transitions[key][n]=(state.transitions[key][n]||0)+1;
-  }
+  // Update pattern states for all active patterns
+  var active = getActivePatterns(state.history);
+  active.forEach(function(k){
+    var s = state.patternState[k];
+    var nc = s.next;
+    var tot = nc[1]+nc[2]+nc[3];
+    var p = tot>0 ? [1,2,3].reduce(function(a,b){ return nc[a]>nc[b]?a:b; }) : 1;
+    s.bets++;
+    if(p === n){ s.wins++; s.streak=0; }
+    else { s.streak++; if(s.streak>s.maxStreak) s.maxStreak=s.streak; }
+    s.next[n] = (s.next[n]||0) + 1;
+  });
 
   state.history.push(n);
-  if(state.history.length>2) state.history.shift();
+  if(state.history.length > 300) state.history.shift();
 
-  state.lastPrediction = combinedPredict();
-  save(); updateUI();
+  state.betHistory.unshift({
+    actual: n, pred: pred, bet: bet, win: win,
+    bank: state.bank, betMade: betMade,
+    key: next.key, lostBefore: lostSumBefore,
+    net: win ? bet*2 : (betMade ? -bet : 0),
+    // snapshot for undo
+    _fibStep: state.fibStep, _lostSum: state.lostSum,
+    _totalBets: state.totalBets, _totalWins: state.totalWins
+  });
+
+  save();
+  showFlash(betMade, win, bet, lostSumBefore);
+  // Highlight last pressed button
+  document.querySelectorAll('.num-btn').forEach(function(b){ b.style.borderColor=''; });
+  var btns = document.querySelectorAll('.num-btn');
+  btns.forEach(function(b){ if(b.textContent.trim()==String(n)) b.style.borderColor='var(--yellow)'; });
+  updateUI();
 }
 
-/* ================= UNDO ================= */
-function undo(){
-  if(state.betHistory.length===0) return;
-  var last=state.betHistory.shift();
-  if(last.w) state.bankroll-=last.b*2;
-  else state.bankroll+=last.b;
-  state.index=last.w?0:Math.max(state.index-1,0);
-  state.history.pop();
-  state.clicks=Math.max(state.clicks-1,0);
-  state.bets=Math.max(state.bets-1,0);
-  state.lastPrediction=combinedPredict();
-  save(); updateUI();
-}
+/* ===== UNDO ===== */
+function undoLast(){
+  if(state.betHistory.length === 0) return;
+  var last = state.betHistory.shift();
 
-/* ================= RESET ================= */
-function resetAll(){
-  var keep=state.manualBets.slice();
-  state={
-    history:[], transitions:{}, lastPrediction:null,
-    bankroll:1000, clicks:0, bets:0,
-    manualBets:keep, index:0, betHistory:[]
-  };
-  save(); updateUI();
-}
-
-/* ================= UI =================== */
-function updateUI(){
-  $("pred").innerHTML = state.lastPrediction ?? "—";
-  var c=confidence();
-  $("conf").innerHTML = c ? "Confidence "+c+"%" : "Confidence —";
-  $("confLimitVal").innerHTML = $("confLimit").value+"%";
-  $("wMarkovVal").innerHTML = ($("wMarkov").value/100).toFixed(2);
-  $("wFreqVal").innerHTML = ($("wFreq").value/100).toFixed(2);
-
-  $("nextBet").innerHTML = canBet()?state.manualBets[state.index]:"—";
-  $("bankroll").innerHTML = state.bankroll.toFixed(2);
-  $("clicks").innerHTML = state.clicks;
-  $("bets").innerHTML = state.bets;
-  $("step").innerHTML = state.index+1;
-
-  var grid=$("betGrid");
-  if(!grid.children.length){
-    for(let i=0;i<20;i++){
-      let inp=document.createElement("input");
-      inp.type="number";
-      inp.value=state.manualBets[i];
-      inp.oninput=()=>{ state.manualBets[i]=Number(inp.value)||0; save(); updateUI(); };
-      grid.appendChild(inp);
+  // Restore bank
+  state.bank = last.bank;
+  if(last.betMade){
+    if(last.win){
+      state.bank = last.bank + last.lostBefore - last.bet; // reverse win
+    } else {
+      state.bank = last.bank + last.bet; // reverse loss deduction // reverse loss
     }
   }
-  for(let i=0;i<20;i++)
-    grid.children[i].className=(i===state.index)?"active":"";
 
-  var h="<tr><th>#</th><th>Enn</th><th>Tulemus</th><th>Panus</th><th>BR</th></tr>";
-  state.betHistory.forEach((x,i)=>{
-    h+="<tr class='"+(x.w?"green":"redtxt")+"'><td>"+(state.betHistory.length-i)+
-       "</td><td>"+x.p+"→"+x.r+"</td><td>"+(x.w?"WIN":"LOSS")+
-       "</td><td>"+x.b+"</td><td>"+x.br.toFixed(2)+"</td></tr>";
+  // Restore step state
+  state.fibStep = last.betMade ? (last.win ? Math.min(last._fibStep+2, state.manualBets.length-1) : Math.max(last._fibStep-1,0)) : last._fibStep;
+  state.lostSum = last.betMade ? (last.win ? last.lostBefore + last.lostBefore : last.lostBefore) : last._lostSum; // crude
+  // Simpler: just restore to pre-action state
+  // Re-derive: bank before = if win: bank - (bet - lostBefore), if loss: bank + bet
+  if(last.betMade){
+    if(last.win){
+      state.bank = last.bank - last.bet*2; // reverse: undo win (+bet*2 net)
+      state.lostSum = last.lostBefore;
+      state.fibStep = Math.min(last._fibStep + 2, state.manualBets.length-1);
+      state.totalBets = last._totalBets - 1;
+      state.totalWins = last._totalWins - 1;
+    } else {
+      state.bank = last.bank + last.bet; // reverse loss deduction
+      state.lostSum = last.lostBefore;
+      state.fibStep = Math.max(last._fibStep - 1, 0);
+      state.totalBets = last._totalBets - 1;
+      state.totalWins = last._totalWins;
+    }
+  } else {
+    state.totalBets = last._totalBets;
+    state.totalWins = last._totalWins;
+    state.lostSum = last._lostSum;
+    state.fibStep = last._fibStep;
+    state.bank = last.bank;
+  }
+
+  // Undo pattern state for that input
+  var active = getActivePatterns(state.history.slice(0,-1));
+  active.forEach(function(k){
+    var s = state.patternState[k];
+    s.bets = Math.max(0, s.bets-1);
+    s.next[last.actual] = Math.max(0, (s.next[last.actual]||0)-1);
+    // Recompute streak (approximate: just decrement)
+    if(last.pred !== null){
+      var nc = s.next;
+      var tot = nc[1]+nc[2]+nc[3];
+      var wasRight = tot>0 ? [1,2,3].reduce(function(a,b){return nc[a]>nc[b]?a:b;}) === last.actual : false;
+      if(wasRight){ s.wins = Math.max(0, s.wins-1); }
+      else { s.streak = Math.max(0, s.streak-1); }
+    }
   });
-  $("history").innerHTML=h;
+
+  state.history.pop();
+  save();
+  updateUI();
+}
+
+/* ===== FLASH ===== */
+function showFlash(betMade, win, bet, lostBefore){
+  var el = document.getElementById('resultFlash');
+  if(!betMade){ el.className='result-flash'; return; }
+  if(win){
+    var net = bet - lostBefore;
+    el.textContent = '✓ VÕIT +' + (bet*2).toFixed(2);
+  } else {
+    el.textContent = '✗ KAOTUS -' + bet.toFixed(2) + (state.lostSum>0?' | kokku: -'+state.lostSum.toFixed(2):'');
+  }
+  el.className = 'result-flash show ' + (win ? 'win' : 'loss');
+  setTimeout(function(){ el.className='result-flash'; }, 1800);
+}
+
+/* ===== BET TABLE ===== */
+function updateBet(input){
+  var idx = parseInt(input.getAttribute('data-idx'));
+  var val = Math.max(0.01, parseFloat(input.value)||0.01);
+  val = Math.round(val * 100) / 100; // round to 2 decimals
+  input.value = val;
+  state.manualBets[idx] = val;
+  save();
+  var next = computeNext();
+  var curBetEl = document.getElementById('currentBet');
+  if(curBetEl) curBetEl.textContent = next.bet.toFixed(2);
+}
+
+function renderBetTable(){
+  var el = document.getElementById('betTable');
+  if(!el) return;
+  // Compact 5-column grid: step numbers across, inputs below
+  // Use a simple 2-col layout: index | input
+  el.style.cssText = 'display:grid;grid-template-columns:repeat(4,1fr);gap:3px';
+  var html = '';
+  for(var i=0; i<state.manualBets.length; i++){
+    var isActive = i === state.fibStep;
+    var isPast = i < state.fibStep;
+    var textColor = isActive ? '#eab308' : isPast ? '#aaa' : '#555';
+    var border = isActive ? '1px solid #eab308' : '1px solid #2a2a2a';
+    var bg = isActive ? 'rgba(234,179,8,0.1)' : 'transparent';
+    html += '<div style="border:'+border+';border-radius:5px;padding:3px 2px;background:'+bg+';text-align:center">'+
+      '<div style="font-size:8px;color:'+textColor+'">'+(i+1)+'</div>'+
+      '<input type="number" min="0.01" step="0.01" value="'+state.manualBets[i]+'" data-idx="'+i+'" onchange="updateBet(this)" '+
+      'style="width:100%;background:transparent;border:none;color:'+textColor+';'+
+      'font-family:DM Mono,monospace;font-size:10px;text-align:center;outline:none;padding:0;'+
+      '-moz-appearance:textfield;-webkit-appearance:none">'+
+      '</div>';
+  }
+  el.innerHTML = html;
+}
+
+/* ===== UI ===== */
+function updateUI(){
+  var pnl = state.bank - START_BANK;
+  var bv = document.getElementById('bankVal');
+  bv.textContent = state.bank.toFixed(2);
+  bv.className = 'bank-val' + (pnl>0?' up':pnl<0?' down':'');
+  document.getElementById('pnlVal').textContent = (pnl>=0?'+':'')+pnl.toFixed(2);
+  document.getElementById('pnlVal').style.color = pnl>0?'var(--green)':pnl<0?'var(--red)':'var(--muted)';
+
+  // Fibonacci row
+  var fibRow = document.getElementById('fibRow');
+  var showFrom = Math.max(0, state.fibStep-2);
+  var showTo = Math.min(state.manualBets.length-1, state.fibStep+3);
+  var fibHtml = '';
+  for(var i=showFrom;i<=showTo;i++){
+    var cls = i<state.fibStep?'fib-step past':i===state.fibStep?'fib-step active':'fib-step';
+    fibHtml += '<div class="'+cls+'" style="width:auto;padding:0 7px;min-width:30px">'+state.manualBets[i]+'</div>';
+  }
+  var curBet = state.manualBets[Math.min(state.fibStep, state.manualBets.length-1)];
+  fibRow.innerHTML = fibHtml+'<span class="fib-bet">Panus: <b id="currentBet">'+curBet.toFixed(2)+'</b></span>';
+
+  // Prediction card
+  var next = computeNext();
+  var predEl = document.getElementById('predNum');
+  var predRight = document.getElementById('predRight');
+  var predPattern = document.getElementById('predPattern');
+  if(next.pred !== null){
+    predEl.textContent = next.pred;
+    predEl.className = 'pred-num';
+    predPattern.textContent = next.key ? '['+next.key+'] jada: '+next.streak : '';
+    var lostInfo = state.lostSum>0 ? '<div class="bet-label" style="margin-top:6px;color:var(--red)">Kaotused</div><div style="font-size:13px;color:var(--red)">-'+state.lostSum+'</div>' : '';
+    predRight.innerHTML = '<div class="bet-label">Panus</div><div class="bet-amount">'+next.bet+'</div>'+lostInfo;
+  } else {
+    predEl.textContent = '—';
+    predEl.className = 'pred-num none';
+    predPattern.textContent = '';
+    predRight.innerHTML = '<div class="no-bet">'+(state.history.length<5?'Ootan andmeid...':'Ei panusta')+'</div>';
+  }
+
+  // Undo button state
+  var undoBtn = document.getElementById('undoBtn');
+  if(undoBtn) undoBtn.disabled = state.betHistory.length === 0;
+
+  // Stats
+  document.getElementById('statWins').textContent = state.totalWins;
+  document.getElementById('statLoss').textContent = state.totalBets - state.totalWins;
+  document.getElementById('statAcc').textContent = state.totalBets>0 ? (state.totalWins/state.totalBets*100).toFixed(1)+'%' : '—';
+
+  // Bet table
+  renderBetTable();
+
+  // History
+  var histEl = document.getElementById('histRows');
+  if(state.betHistory.length === 0){
+    histEl.innerHTML = '<div style="font-size:11px;color:var(--muted);text-align:center;padding:10px">Vajuta numbreid alustamiseks</div>';
+    return;
+  }
+  var hHtml = '';
+  state.betHistory.forEach(function(h,i){
+    if(!h.betMade){
+      hHtml += '<div class="hist-row">'+
+        '<span class="hist-idx">#'+(state.betHistory.length-i)+'</span>'+
+        '<span style="color:var(--muted);font-size:10px">—</span>'+
+        '<span class="hist-arrow">→</span>'+
+        '<span class="hist-actual">'+h.actual+'</span>'+
+        '<span class="hist-result no-bet-color" style="margin-left:auto;font-size:10px">ei panusta</span>'+
+        '</div>';
+    } else {
+      var cls = h.win?'win-color':'loss-color';
+      var net = h.net !== undefined ? h.net : (h.win?h.bet:-h.bet);
+      hHtml += '<div class="hist-row">'+
+        '<span class="hist-idx">#'+(state.betHistory.length-i)+'</span>'+
+        '<span class="hist-pred '+cls+'">'+h.pred+'</span>'+
+        '<span class="hist-arrow">→</span>'+
+        '<span class="hist-actual">'+h.actual+'</span>'+
+        '<span class="hist-result '+cls+'">'+(net>=0?'+':'')+net.toFixed(2)+'</span>'+
+        '<span class="hist-bank">'+h.bank.toFixed(2)+'</span>'+
+        '</div>';
+    }
+  });
+  histEl.innerHTML = hHtml;
+}
+
+function resetBets(){
+  state.manualBets = DEFAULT_BETS.slice();
+  save();
+  updateUI();
+}
+
+function resetGame(){
+  var savedBets = state.manualBets ? state.manualBets.slice() : null;
+  state = defaultState();
+  if(savedBets) state.manualBets = savedBets;
+  save();
+  updateUI();
 }
 
 updateUI();
 </script>
+
 </body>
 </html>
